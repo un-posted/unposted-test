@@ -11,6 +11,7 @@ import { Bookmark } from '../models/bookmark';
 import { ActivatedRoute } from '@angular/router';
 import { getAuth, user } from '@angular/fire/auth';
 import { ViewsService } from '../story/services/views.service';
+import { DraftsService } from '../story/services/draft.service';
 
 interface Badge {
   id: string;
@@ -121,11 +122,11 @@ interface Achievement {
             
             <div class="user-stats">
               <div class="stat">
-                <span class="stat-number">{{ userProfile.stats?.draftsCount || 0 }}</span>
+                <span class="stat-number">{{ drafts.length }}</span>
                 <span class="stat-label">Drafts</span>
               </div>
               <div class="stat">
-                <span class="stat-number">{{ userProfile.stats?.storiesPublished || 0 }}</span>
+                <span class="stat-number">{{ stories.length }}</span>
                 <span class="stat-label">Articles</span>
               </div>
               <div class="stat">
@@ -240,8 +241,8 @@ interface Achievement {
             </div>
             <div *ngFor="let draft of drafts" class="content-card">
               <div class="card-header">
+                <h2 class="card-title">{{ draft.emoji }}</h2>
                 <h3 class="card-title">{{ draft.title }}</h3>
-                <span class="card-meta">{{ draft.wordCount }} words</span>
               </div>
               <p class="card-excerpt">{{ draft.excerpt || getExcerpt(draft.content) }}</p>
               <div class="card-footer">
@@ -268,17 +269,15 @@ interface Achievement {
             </div>
             <div *ngFor="let story of stories" class="content-card">
               <div class="card-header">
+                <h2 class="card-title">{{ story.emoji }}</h2>
                 <h3 class="card-title">{{ story.title }}</h3>
-                <span class="card-meta">{{ story.readTime || calculateReadTime(story.content) }} min read</span>
               </div>
               <p class="card-excerpt">{{ story.excerpt || getExcerpt(story.content) }}</p>
+              <div class="bookmark-tags" *ngIf="story.tags && story.tags.length > 0">
+                <span *ngFor="let tag of story.tags" class="tag">{{ tag }}</span>
+              </div>
               <div class="card-footer">
-                <span class="card-date">Published {{ formatDate(story.createdAt) }}</span>
-                <div class="card-stats">
-                  <span class="stat-item">{{ story.voteCount || 0 }} votes</span>
-                  <span class="stat-item">{{ story.commentCount || 0 }} comments</span>
-                  <span class="stat-item" *ngIf="loadViewCount(story.id)" || 0>{{ loadViewCount(story.id) || 0 }} reads</span>
-                </div>
+                
               </div>
             </div>
           </div>
@@ -1078,7 +1077,9 @@ export class ProfileComponent implements OnInit, OnDestroy {
   constructor(
     private profileService: ProfileService,
     private route: ActivatedRoute,
-    private viewsService: ViewsService
+    private viewsService: ViewsService,
+      private draftsService: DraftsService // 👈 add this
+
   ) {}
 
   ngOnInit() {
@@ -1146,14 +1147,16 @@ export class ProfileComponent implements OnInit, OnDestroy {
 
       // Load related lists
       const [drafts, stories, bookmarks] = await Promise.all([
-        this.profileService.getUserDrafts(targetUid),
+        this.draftsService.getDraftsByAuthor(targetUid, 20),
         this.profileService.getUserPublishedStories(targetUid),
         this.profileService.getUserBookmarks(targetUid)
       ]);
 
       this.drafts = drafts;
       this.stories = stories;
+      console.log(this.stories)
       this.bookmarks = bookmarks;
+      console.log(this.bookmarks)
 
       // Refresh badge progress now that we have data
       this.updateBadgeProgress();
@@ -1424,15 +1427,17 @@ export class ProfileComponent implements OnInit, OnDestroy {
   }
 }
 
-  formatNumber(num: number): string {
-    if (num >= 1000000) {
-      return (num / 1000000).toFixed(1) + 'M';
-    }
-    if (num >= 1000) {
-      return (num / 1000).toFixed(1) + 'K';
-    }
-    return num.toString();
+  formatNumber(num: number | null | undefined): string {
+  if (num === null || num === undefined) return "0";
+
+  if (num >= 1_000_000) {
+    return (num / 1_000_000).toFixed(1) + "M";
   }
+  if (num >= 1_000) {
+    return (num / 1_000).toFixed(1) + "K";
+  }
+  return num.toString();
+}
 
   // Follow system methods
   
@@ -1542,7 +1547,8 @@ export class ProfileComponent implements OnInit, OnDestroy {
     if (!confirm('Are you sure you want to delete this draft?')) return;
     
     try {
-      await this.profileService.deleteDraft(draft.id, draft.authorId);
+      await this.draftsService.deleteDraft(draft.id); // ✅ simpler
+
       this.drafts = this.drafts.filter(d => d.id !== draft.id);
     } catch (error) {
       console.error('Error deleting draft:', error);

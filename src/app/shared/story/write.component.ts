@@ -7,6 +7,8 @@ import { AuthService } from '../../auth/auth';
 import { CreateStoryData } from '../models/story';
 import { StoryStatus } from '../models/firestore';
 import { Subscription } from 'rxjs';
+import { CreateDraftData } from '../models/draft';
+import { DraftsService } from './services/draft.service';
 
 @Component({
   selector: 'app-write-story',
@@ -754,6 +756,7 @@ import { Subscription } from 'rxjs';
 })
 export class WriteStoryComponent implements OnInit, OnDestroy {
   private storiesService = inject(StoriesService);
+  private draftsService = inject(DraftsService);
   private authService = inject(AuthService);
   private router = inject(Router);
 
@@ -936,41 +939,45 @@ toggleDirection() {
   }
 
   async saveDraft() {
-    if (!this.currentUser || this.isSubmitting) return;
+  if (!this.currentUser || this.isSubmitting) return;
 
-    this.isSubmitting = true;
-    this.errorMessage = '';
-    this.formData.status = 'draft';
+  this.isSubmitting = true;
+  this.errorMessage = '';
+  this.formData.status = 'draft';
 
-    try {
-      const tags = this.tagsInput
-        .split(',')
-        .map(tag => tag.trim())
-        .filter(tag => tag.length > 0)
-        .slice(0, 10);
+  try {
+    const tags = this.tagsInput
+      .split(',')
+      .map(tag => tag.trim())
+      .filter(tag => tag.length > 0)
+      .slice(0, 10);
 
-      const storyData: CreateStoryData = {
-        ...this.formData as CreateStoryData,
-        tags,
-        readTime: this.getReadTime(),
-        status: 'draft' as StoryStatus,
-      };
-      
-      await this.storiesService.createStory(storyData);
-      
-      this.successMessage = 'Draft saved successfully!';
-      
-      setTimeout(() => {
-        this.successMessage = '';
-      }, 3000);
+    const draftData: CreateDraftData = {
+      ...this.formData as CreateDraftData,
+      tags,
+      readTime: this.getReadTime(),
+      authorId: this.currentUser.uid,
+      authorName: this.currentUser.displayName || 'Anonymous',
+      isPublic: false, // Drafts should usually not be public
+      language: this.formData.language || 'en',
+    };
 
-    } catch (error) {
-      console.error('Error saving draft:', error);
-      this.errorMessage = 'Failed to save draft. Please try again.';
-    } finally {
-      this.isSubmitting = false;
-    }
+    await this.draftsService.createDraft(draftData);
+
+    this.successMessage = 'Draft saved successfully!';
+
+    setTimeout(() => {
+      this.successMessage = '';
+    }, 3000);
+
+  } catch (error) {
+    console.error('Error saving draft:', error);
+    this.errorMessage = 'Failed to save draft. Please try again.';
+  } finally {
+    this.isSubmitting = false;
   }
+}
+
 
   // Auto-save functionality
   private setupAutoSave() {
