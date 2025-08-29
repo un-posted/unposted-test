@@ -11,33 +11,16 @@ import { User } from '@angular/fire/auth';
   standalone: true,
   imports: [CommonModule, RouterModule, FormsModule],
   template: `
-    <!--<div class="announcement-bar" *ngIf="showAnnouncement">
-      <span>Never miss the latest stories from Unposted.</span>
-      <a href="#" (click)="openSubscribeModal($event)" class="announcement-link">
-        Subscribe now →
-      </a>
-    </div>-->
-
-    <nav class="navbar">
+    <!-- Desktop/Tablet Navbar -->
+    <nav class="navbar desktop-navbar">
       <a class="navbar-logo" routerLink="/">
         <span>🌙</span>
         <span>Unposted</span>
       </a>
       
-      <div class="navbar-right">
-        <button 
-          class="mobile-menu-toggle" 
-          [class.active]="mobileMenuOpen"
-          (click)="toggleMobileMenu()"
-          aria-label="Toggle menu">
-          <span></span>
-          <span></span>
-          <span></span>
-        </button>
-        
-        <div class="nav-links" [class.active]="mobileMenuOpen">
+      <div class="navbar-right">        
+        <div class="nav-links">
           <a routerLink="/stories" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}">Home</a>
-          <!--<a routerLink="/stories" routerLinkActive="active">Stories</a>-->
           <a routerLink="/write" routerLinkActive="active">Write</a>
           <a routerLink="/about" routerLinkActive="active">About</a>
         </div>
@@ -50,7 +33,6 @@ import { User } from '@angular/fire/auth';
 
         <!-- User profile when logged in -->
         <div class="navbar-buttons logged-in" *ngIf="user">
-          
           <div class="user-profile" (click)="toggleUserMenu()">
             <div class="user-avatar">
               {{ getUserInitial() }}
@@ -86,7 +68,103 @@ import { User } from '@angular/fire/auth';
         </div>
       </div>
     </nav>
+
+    <!-- Mobile Bottom Navigation -->
+    <nav class="bottom-nav mobile-navbar">
+      <div class="bottom-nav-container">
+        <!-- Home/Stories -->
+        <a routerLink="/stories" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}" class="nav-item">
+          <div class="nav-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M3 9L12 2L21 9V20C21 20.5304 20.7893 21.0391 20.4142 21.4142C20.0391 21.7893 19.5304 22 19 22H5C4.46957 22 3.96086 21.7893 3.58579 21.4142C3.21071 21.0391 3 20.5304 3 20V9Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M9 22V12H15V22" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <span class="nav-label">Home</span>
+        </a>
+
+        <!-- Write -->
+        <a routerLink="/write" routerLinkActive="active" class="nav-item">
+          <div class="nav-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M11 4H4C3.46957 4 2.96086 4.21071 2.58579 4.58579C2.21071 4.96086 2 5.46957 2 6V20C2 20.5304 2.21071 21.0391 2.58579 21.4142C2.96086 21.7893 3.46957 22 4 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M18.5 2.49998C18.8978 2.10216 19.4374 1.87866 20 1.87866C20.5626 1.87866 21.1022 2.10216 21.5 2.49998C21.8978 2.89781 22.1213 3.43737 22.1213 3.99998C22.1213 4.56259 21.8978 5.10216 21.5 5.49998L12 15L8 16L9 12L18.5 2.49998Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <span class="nav-label">Write</span>
+        </a>
+
+        <!-- About -->
+        <a routerLink="/about" routerLinkActive="active" class="nav-item">
+          <div class="nav-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+              <path d="M9.09 9C9.3251 8.33167 9.78915 7.76811 10.4 7.40913C11.0108 7.05016 11.7289 6.91894 12.4272 7.03871C13.1255 7.15849 13.7588 7.52152 14.2151 8.06353C14.6713 8.60553 14.9211 9.29152 14.92 10C14.92 12 11.92 13 11.92 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M12 17H12.01" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <span class="nav-label">About</span>
+        </a>
+
+        <!-- Profile/Auth -->
+        <div class="nav-item profile-nav" *ngIf="user; else authButtons">
+          <div class="nav-icon profile-icon" (click)="toggleMobileUserMenu()">
+            <div class="user-avatar-mobile">
+              {{ getUserInitial() }}
+            </div>
+          </div>
+          <span class="nav-label">Profile</span>
+        </div>
+
+        <ng-template #authButtons>
+          <a routerLink="/login" class="nav-item auth-nav">
+            <div class="nav-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M15 3H19C19.5304 3 20.0391 3.21071 20.4142 3.58579C20.7893 3.96086 21 4.46957 21 5V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M10 17L15 12L10 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M15 12H3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <span class="nav-label">Sign In</span>
+          </a>
+        </ng-template>
+      </div>
+    </nav>
+
+    <!-- Mobile User Menu Overlay -->
+    <div class="mobile-user-overlay" [class.active]="mobileUserMenuOpen" *ngIf="user && mobileUserMenuOpen" (click)="closeMobileUserMenu()">
+      <div class="mobile-user-menu" (click)="$event.stopPropagation()">
+        <div class="mobile-user-header">
+          <div class="user-avatar-large">{{ getUserInitial() }}</div>
+          <div class="user-details">
+            <div class="user-display-name">{{ getUserName() }}</div>
+            <div class="user-email">{{ user.email }}</div>
+          </div>
+          <button class="close-mobile-menu" (click)="closeMobileUserMenu()">&times;</button>
+        </div>
+        
+        <div class="mobile-menu-items">
+          <a routerLink="/profile" (click)="closeMobileUserMenu()" class="mobile-menu-item">
+            <span class="item-icon">👤</span>
+            <span>Profile</span>
+          </a>
+          <a routerLink="/my-stories" (click)="closeMobileUserMenu()" class="mobile-menu-item">
+            <span class="item-icon">📖</span>
+            <span>My Stories</span>
+          </a>
+          <a routerLink="/settings" (click)="closeMobileUserMenu()" class="mobile-menu-item">
+            <span class="item-icon">⚙️</span>
+            <span>Settings</span>
+          </a>
+          <button class="mobile-menu-item logout-item" (click)="logout()">
+            <span class="item-icon">🚪</span>
+            <span>Sign Out</span>
+          </button>
+        </div>
+      </div>
+    </div>
     
+    <!-- Modal remains the same -->
     <div 
       class="modal" 
       [style.display]="isOpen ? 'flex' : 'none'"
@@ -118,7 +196,6 @@ import { User } from '@angular/fire/auth';
             placeholder="Enter your email" 
             required />
 
-          <!-- Anti-spam honeypot -->
           <input type="text" name="_honey" style="display:none" />
           <input type="hidden" name="_captcha" value="false" />
           <input type="hidden" name="_next" value="https://un-posted.github.io/unposted/pages/thank-you.html" />
@@ -131,7 +208,8 @@ import { User } from '@angular/fire/auth';
     </div>
   `,
   styles: [`
-    .navbar {
+    /* Desktop Navbar Styles */
+    .desktop-navbar {
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -345,139 +423,200 @@ import { User } from '@angular/fire/auth';
       }
     }
 
-    .mobile-menu-toggle {
+    /* Mobile Bottom Navigation */
+    .mobile-navbar {
       display: none;
+    }
+
+    .bottom-nav {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border-top: 1px solid rgba(0, 0, 0, 0.1);
+      z-index: 1000;
+      box-shadow: 0 -2px 20px rgba(0, 0, 0, 0.1);
+    }
+
+    .bottom-nav-container {
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      padding: 0.5rem 1rem 1rem;
+      max-width: 100%;
+    }
+
+    .nav-item {
+      display: flex;
       flex-direction: column;
-      background: transparent;
-      border: none;
-      cursor: pointer;
+      align-items: center;
+      gap: 0.25rem;
       padding: 0.5rem;
-      gap: 0.3rem;
+      border-radius: 12px;
+      text-decoration: none;
+      color: #666;
+      transition: all 0.3s ease;
+      min-width: 60px;
+      position: relative;
       
-      span {
-        width: 20px;
-        height: 2px;
-        background: var(--text-dark);
-        transition: all 0.3s ease;
-        border-radius: 2px;
+      &:hover, &.active {
+        color: var(--main-color);
+        background: rgba(255, 193, 0, 0.1);
       }
       
       &.active {
-        span:nth-child(1) {
-          transform: rotate(45deg) translate(5px, 5px);
-        }
-        span:nth-child(2) {
-          opacity: 0;
-        }
-        span:nth-child(3) {
-          transform: rotate(-45deg) translate(7px, -6px);
+        transform: translateY(-2px);
+        
+        .nav-icon {
+          transform: scale(1.1);
         }
       }
     }
 
-    .announcement-bar {
-      background: #8B5CF6;
-      color: #fff;
-      font-size: 0.95rem;
-      text-align: center;
-      padding: 0.6rem 1rem;
+    .nav-icon {
+      width: 24px;
+      height: 24px;
       display: flex;
-      justify-content: center;
       align-items: center;
-      gap: 0.5rem;
-      flex-wrap: wrap;
+      justify-content: center;
+      transition: transform 0.3s ease;
+      
+      svg {
+        width: 100%;
+        height: 100%;
+      }
     }
 
-    .announcement-link {
-      color: #fff;
-      font-weight: 600;
-      text-decoration: underline;
-      transition: color 0.3s ease;
+    .nav-label {
+      font-size: 0.7rem;
+      font-weight: 500;
+      text-align: center;
+    }
+
+    .profile-icon {
+      cursor: pointer;
+    }
+
+    .user-avatar-mobile {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: var(--main-color);
+      color: var(--text-dark);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      font-size: 0.7rem;
+    }
+
+    /* Mobile User Menu Overlay */
+    .mobile-user-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 10000;
+      display: flex;
+      align-items: flex-end;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.3s ease;
+      
+      &.active {
+        opacity: 1;
+        visibility: visible;
+      }
+    }
+
+    .mobile-user-menu {
+      width: 100%;
+      background: white;
+      border-radius: 20px 20px 0 0;
+      max-height: 70vh;
+      transform: translateY(100%);
+      transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+      
+      .mobile-user-overlay.active & {
+        transform: translateY(0);
+      }
+    }
+
+    .mobile-user-header {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 1.5rem 1.5rem 1rem;
+      border-bottom: 1px solid #eee;
+      position: relative;
+    }
+
+    .user-details {
+      flex: 1;
+    }
+
+    .close-mobile-menu {
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+      background: none;
+      border: none;
+      font-size: 1.5rem;
+      color: #666;
+      cursor: pointer;
+      padding: 0.5rem;
+      border-radius: 50%;
+      transition: background 0.3s ease;
       
       &:hover {
-        color: #FFF200;
+        background: #f5f5f5;
       }
     }
 
-    @media (max-width: 768px) {
-      .navbar {
-        padding: 1rem;
-      }
-
-      .navbar-logo {
-        font-size: 1.2rem;
-      }
-
-      .navbar-right {
-        gap: 1rem;
-      }
-
-      .mobile-menu-toggle {
-        display: flex;
-      }
-
-      .nav-links {
-        position: absolute;
-        top: 100%;
-        right: 0;
-        background: white;
-        border: 1px solid #eee;
-        border-radius: 8px;
-        box-shadow: var(--card-shadow-hover);
-        flex-direction: column;
-        gap: 0;
-        padding: 1rem;
-        min-width: 150px;
-        transform: translateY(-10px);
-        opacity: 0;
-        visibility: hidden;
-        transition: all 0.3s ease;
-        z-index: 1000;
-
-        &.active {
-          transform: translateY(0);
-          opacity: 1;
-          visibility: visible;
-        }
-
-        a {
-          padding: 0.7rem 0;
-          font-size: 0.95rem;
-        }
-      }
-
-      .username {
-        display: none;
-      }
-
-      .navbar-buttons .cta-btn,
-      .navbar-buttons .auth-btn {
-        padding: 0.5rem 0.8rem;
-        font-size: 0.8rem;
-      }
-
-      .user-menu {
-        right: -1rem;
-        min-width: 200px;
-      }
+    .mobile-menu-items {
+      padding: 1rem 0;
     }
 
-    @media (max-width: 480px) {
-      .navbar-buttons {
-        gap: 0.5rem;
+    .mobile-menu-item {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 1rem 1.5rem;
+      text-decoration: none;
+      color: var(--text-dark);
+      font-size: 1rem;
+      transition: background 0.3s ease;
+      border: none;
+      background: none;
+      width: 100%;
+      text-align: left;
+      cursor: pointer;
+      
+      &:hover {
+        background: #f5f5f5;
       }
       
-      .navbar-buttons .cta-btn,
-      .navbar-buttons .auth-btn {
-        padding: 0.4rem 0.6rem;
-        font-size: 0.75rem;
-      }
-
-      .dropdown-arrow {
-        display: none;
+      &.logout-item {
+        color: #dc3545;
+        
+        &:hover {
+          background: #fff5f5;
+        }
       }
     }
 
+    .item-icon {
+      font-size: 1.2rem;
+      width: 24px;
+      text-align: center;
+    }
+
+    /* Modal styles remain the same */
     .modal {
       position: fixed;
       top: 0; left: 0; right: 0; bottom: 0;
@@ -566,11 +705,44 @@ import { User } from '@angular/fire/auth';
         cursor: not-allowed;
       }
     }
+
+    /* Responsive Design */
+    @media (max-width: 768px) {
+      .desktop-navbar {
+        display: none;
+      }
+
+      .mobile-navbar {
+        display: block;
+      }
+
+      /* Add bottom padding to body to account for bottom nav */
+      body {
+        padding-bottom: 80px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .nav-label {
+        font-size: 0.65rem;
+      }
+      
+      .bottom-nav-container {
+        padding: 0.4rem 0.5rem 0.8rem;
+      }
+    }
+
+    /* Safe area for devices with home indicator */
+    @supports (padding-bottom: env(safe-area-inset-bottom)) {
+      .bottom-nav {
+        padding-bottom: env(safe-area-inset-bottom);
+      }
+    }
   `]
 })
 export class NavbarComponent implements OnInit, OnDestroy {
-  mobileMenuOpen = false;
   userMenuOpen = false;
+  mobileUserMenuOpen = false;
   showAnnouncement = true;
   user: User | null = null;
   private userSubscription?: Subscription;
@@ -591,9 +763,11 @@ export class NavbarComponent implements OnInit, OnDestroy {
     // Close menus when clicking outside
     document.addEventListener('click', (e) => {
       const target = e.target as HTMLElement;
-      if (!target?.closest('.navbar-right')) {
-        this.mobileMenuOpen = false;
+      if (!target?.closest('.navbar-right') && 
+          !target?.closest('.mobile-user-menu') && 
+          !target?.closest('.profile-nav')) {
         this.userMenuOpen = false;
+        this.mobileUserMenuOpen = false;
       }
     });
   }
@@ -604,18 +778,20 @@ export class NavbarComponent implements OnInit, OnDestroy {
     }
   }
 
-  toggleMobileMenu() {
-    this.mobileMenuOpen = !this.mobileMenuOpen;
-    this.userMenuOpen = false; // Close user menu when opening mobile menu
-  }
-
   toggleUserMenu() {
     this.userMenuOpen = !this.userMenuOpen;
-    this.mobileMenuOpen = false; // Close mobile menu when opening user menu
   }
 
   closeUserMenu() {
     this.userMenuOpen = false;
+  }
+
+  toggleMobileUserMenu() {
+    this.mobileUserMenuOpen = !this.mobileUserMenuOpen;
+  }
+
+  closeMobileUserMenu() {
+    this.mobileUserMenuOpen = false;
   }
 
   getUserInitial(): string {
@@ -654,6 +830,7 @@ export class NavbarComponent implements OnInit, OnDestroy {
     try {
       await this.authService.logout();
       this.closeUserMenu();
+      this.closeMobileUserMenu();
       console.log('Logout successful');
       // Optionally redirect to home page
       // this.router.navigate(['/']);

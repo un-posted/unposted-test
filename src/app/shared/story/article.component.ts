@@ -37,7 +37,7 @@ import { serverTimestamp, Timestamp } from '@angular/fire/firestore';
       <!-- Hero Section -->
       <div class="hero-section">
         <div class="article-emoji" [class.pulse]="!isLoading">{{ story.emoji || "📖" }}</div>
-        <div class="article-category">{{ story.category || "Story" }}</div>
+        <div class="category-badge" [attr.data-category]="story.category">{{ story.category || "Story" }}</div>
         <h1 class="article-title">{{ story.title }}</h1>
 
         <!-- Enhanced Meta Information -->
@@ -1096,6 +1096,35 @@ import { serverTimestamp, Timestamp } from '@angular/fire/firestore';
         padding: 1.5rem;
       }
     }
+
+    /* Category Badges */
+.category-badge[data-category="Personal Growth"] { color: #fef3c7; background: #92400e; }
+.category-badge[data-category="Life Lessons"] { color: #fce7f3; background: #9d174d; }
+.category-badge[data-category="Cultural Heritage"] { color: #e0f2fe; background: #0369a1; }
+.category-badge[data-category="Travel & Adventure"] { color: #dbeafe; background: #1e40af; }
+.category-badge[data-category="Work & Career"] { color: #f3e8ff; background: #6d28d9; }
+.category-badge[data-category="Relationships"] { color: #ffe4e6; background: #be123c; }
+.category-badge[data-category="Family Stories"] { color: #dcfce7; background: #166534; }
+.category-badge[data-category="Overcoming Challenges"] { color: #fee2e2; background: #b91c1c; }
+.category-badge[data-category="Creative Journey"] { color: #ccfbf1; background: #0f766e; }
+.category-badge[data-category="Social Impact"] { color: #ede9fe; background: #5b21b6; }
+.category-badge[data-category="Health & Wellness"] { color: #fef9c3; background: #854d0e; }
+.category-badge[data-category="Education & Learning"] { color: #d1fae5; background: #047857; }
+.category-badge[data-category="Dreams & Aspirations"] { color: #fdf2f8; background: #9d174d; }
+.category-badge[data-category="Unexpected Moments"] { color: #e0f7fa; background: #00695c; }
+.category-badge[data-category="Other"] { color: #f5f5f5; background: #374151; }
+
+/* Base badge look */
+.category-badge {
+  display: inline-block;
+  padding: 0.35rem 0.75rem;
+  border-radius: 50px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
   `]
 })
 export class ArticleComponent implements OnInit, OnDestroy {

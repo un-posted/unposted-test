@@ -62,7 +62,7 @@ interface Achievement {
             <div class="name-section">
               <h1 *ngIf="!editingName" class="user-name" (click)="startEditingName()">
                 {{ userProfile.displayName || 'Anonymous User' }}
-                <span class="edit-icon">✏️</span>
+                <span class="edit-icon" *ngIf="isOwnProfile">✏️</span>
               </h1>
               <div *ngIf="editingName" class="name-edit">
                 <input 
@@ -101,7 +101,7 @@ interface Achievement {
             <div class="bio-section">
               <p *ngIf="!editingBio" class="user-bio" (click)="startEditingBio()">
                 {{ userProfile.bio || 'No bio added yet. Click to add one!' }}
-                <span class="edit-icon">✏️</span>
+                <span class="edit-icon" *ngIf="isOwnProfile">✏️</span>
               </p>
               <div *ngIf="editingBio" class="bio-edit">
                 <textarea 
@@ -121,7 +121,7 @@ interface Achievement {
             </div>
             
             <div class="user-stats">
-              <div class="stat">
+              <div class="stat" *ngIf="isOwnProfile">
                 <span class="stat-number">{{ drafts.length }}</span>
                 <span class="stat-label">Drafts</span>
               </div>
@@ -130,7 +130,7 @@ interface Achievement {
                 <span class="stat-label">Articles</span>
               </div>
               <div class="stat">
-                <span class="stat-number">{{ bookmarks.length }}</span>
+                <span class="stat-number">{{ userProfile.stats.bookmarksCount }}</span>
                 <span class="stat-label">Bookmarks</span>
               </div>
               <div class="stat">
@@ -188,15 +188,15 @@ interface Achievement {
         <div class="community-section" *ngIf="userProfile.stats?.totalViews || userProfile.stats?.bookmarksCount">
           <h3 class="section-title">Community Impact</h3>
           <div class="impact-stats">
-            <div class="impact-stat" *ngIf="userProfile.stats?.totalViews">
-              <span class="impact-number">{{ formatNumber(userProfile.stats.totalViews) }}</span>
+            <div class="impact-stat" *ngIf="userProfile.stats?.bookmarksCount">
+              <span class="impact-number">{{ formatNumber(userProfile.stats.bookmarksCount) }}</span>
               <span class="impact-label">Total reads across your stories</span>
             </div>
             <div class="impact-stat" *ngIf="userProfile.stats?.bookmarksCount">
               <span class="impact-number">{{ userProfile.stats.bookmarksCount }}</span>
               <span class="impact-label">Times your stories were bookmarked</span>
             </div>
-            <div class="impact-stat" *ngIf="userProfile.stats?.totalViews">
+            <div class="impact-stat" *ngIf="userProfile.stats?.bookmarksCount">
               <span class="impact-number">{{ formatNumber(userProfile.stats.totalViews) }}</span>
               <span class="impact-label">Comments on your stories</span>
             </div>
@@ -209,7 +209,8 @@ interface Achievement {
             <button 
               class="tab"
               [class.active]="activeTab === 'drafts'"
-              (click)="setActiveTab('drafts')">
+              (click)="setActiveTab('drafts')"
+              *ngIf="isOwnProfile">
               Drafts ({{ drafts.length }})
             </button>
             <button 
@@ -221,7 +222,8 @@ interface Achievement {
             <button 
               class="tab"
               [class.active]="activeTab === 'bookmarks'"
-              (click)="setActiveTab('bookmarks')">
+              (click)="setActiveTab('bookmarks')"
+              *ngIf="isOwnProfile">
               Bookmarks ({{ bookmarks.length }})
             </button>
           </div>
@@ -326,716 +328,715 @@ interface Achievement {
   `,
   styles: [`
     .profile-container {
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 2rem;
-      background-color: #fefcf7;
-      min-height: 100vh;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    }
-
-    .loading-state,
-    .error-state {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      min-height: 400px;
-      text-align: center;
-    }
-
-    .spinner {
-      width: 40px;
-      height: 40px;
-      border: 4px solid #f5f1e8;
-      border-top: 4px solid #e6b17a;
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-      margin-bottom: 1rem;
-    }
-
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-
-    .profile-header {
-      display: flex;
-      gap: 2rem;
-      margin-bottom: 2rem;
-      background: #ffffff;
-      padding: 2rem;
-      border-radius: 16px;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-      border: 1px solid #f5f1e8;
-    }
-
-    .avatar-section {
-      flex-shrink: 0;
-      position: relative;
-    }
-
-    .avatar-container {
-      position: relative;
-      cursor: pointer;
-      width: 120px;
-      height: 120px;
-      border-radius: 50%;
-      overflow: hidden;
-      transition: all 0.2s ease;
-    }
-
-    .avatar {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      border: 3px solid #f5f1e8;
-    }
-
-    .level-badge {
-      position: absolute;
-      bottom: -5px;
-      right: -5px;
-      width: 36px;
-      height: 36px;
-      background: linear-gradient(135deg, #e6b17a, #d4a574);
-      border: 3px solid white;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      box-shadow: 0 2px 8px rgba(230, 177, 122, 0.3);
-    }
-
-    .level-number {
-      color: white;
-      font-weight: 700;
-      font-size: 0.875rem;
-    }
-
-    .profile-info {
-      flex: 1;
-      min-width: 0;
-    }
-
-    .name-section {
-      margin-bottom: 1rem;
-    }
-
-    .user-name {
-      font-size: 2rem;
-      font-weight: 700;
-      color: #2d2d2d;
-      margin: 0;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      gap: 0.5rem;
-      transition: color 0.2s ease;
-    }
-
-    .user-name:hover {
-      color: #e6b17a;
-    }
-
-    .edit-icon {
-      font-size: 1rem;
-      opacity: 0;
-      transition: opacity 0.2s ease;
-    }
-
-    .user-name:hover .edit-icon,
-    .user-bio:hover .edit-icon {
-      opacity: 1;
-    }
-
-    .streak-section {
-      margin-bottom: 1rem;
-    }
-
-    .streak-indicator {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.5rem;
-      background: linear-gradient(135deg, #ff6b35, #e6b17a);
-      color: white;
-      padding: 0.5rem 1rem;
-      border-radius: 20px;
-      font-size: 0.875rem;
-      font-weight: 600;
-      box-shadow: 0 2px 8px rgba(255, 107, 53, 0.2);
-    }
-
-    .xp-section {
-      margin-bottom: 1rem;
-    }
-
-    .xp-info {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 0.5rem;
-      font-size: 0.875rem;
-    }
-
-    .xp-current {
-      font-weight: 600;
-      color: #2d2d2d;
-    }
-
-    .xp-next {
-      color: #8b8680;
-    }
-
-    .xp-bar {
-      height: 8px;
-      background: #f5f1e8;
-      border-radius: 4px;
-      overflow: hidden;
-    }
-
-    .xp-progress {
-      height: 100%;
-      background: linear-gradient(90deg, #e6b17a, #d4a574);
-      border-radius: 4px;
-      transition: width 0.3s ease;
-    }
-
-    .follow-section {
-      margin-top: 1rem;
-    }
-
-    .follow-btn {
-      padding: 0.75rem 1.5rem;
-      border-radius: 8px;
-      font-size: 0.875rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      border: 2px solid #e6b17a;
-      background: #e6b17a;
-      color: white;
-    }
-
-    .follow-btn:hover {
-      background: #d4a574;
-      border-color: #d4a574;
-    }
-
-    .follow-btn.following {
-      background: transparent;
-      color: #e6b17a;
-    }
-
-    .follow-btn.following:hover {
-      background: #f5f1e8;
-    }
-
-    .follow-btn:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-    }
-
-    .name-edit,
-    .bio-edit {
-      display: flex;
-      flex-direction: column;
-      gap: 0.75rem;
-    }
-
-    .name-input {
-      font-size: 2rem;
-      font-weight: 700;
-      color: #2d2d2d;
-      border: 2px solid #e6b17a;
-      border-radius: 8px;
-      padding: 0.5rem;
-      background: #fefcf7;
-      font-family: inherit;
-      outline: none;
-    }
-
-    .bio-section {
-      margin-bottom: 1.5rem;
-    }
-
-    .user-bio {
-      font-size: 1.125rem;
-      color: #5a564f;
-      line-height: 1.6;
-      margin: 0;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: flex-start;
-      gap: 0.5rem;
-      transition: color 0.2s ease;
-    }
-
-    .user-bio:hover {
-      color: #2d2d2d;
-    }
-
-    .bio-textarea {
-      font-size: 1.125rem;
-      color: #2d2d2d;
-      border: 2px solid #e6b17a;
-      border-radius: 8px;
-      padding: 0.75rem;
-      background: #fefcf7;
-      font-family: inherit;
-      resize: vertical;
-      outline: none;
-      line-height: 1.6;
-      min-height: 80px;
-    }
-
-    .edit-actions {
-      display: flex;
-      gap: 0.5rem;
-    }
-
-    .save-btn,
-    .cancel-btn,
-    .create-btn,
-    .retry-btn {
-      padding: 0.5rem 1rem;
-      border-radius: 6px;
-      font-size: 0.875rem;
-      font-weight: 500;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      border: none;
-    }
-
-    .save-btn,
-    .create-btn,
-    .retry-btn {
-      background: #e6b17a;
-      color: white;
-    }
-
-    .save-btn:hover,
-    .create-btn:hover,
-    .retry-btn:hover {
-      background: #d4a574;
-    }
-
-    .save-btn:disabled {
-      background: #8b8680;
-      cursor: not-allowed;
-    }
-
-    .cancel-btn {
-      background: #f5f1e8;
-      color: #5a564f;
-    }
-
-    .cancel-btn:hover {
-      background: #8b8680;
-      color: white;
-    }
-
-    .user-stats {
-      display: flex;
-      gap: 2rem;
-    }
-
-    .stat {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      text-align: center;
-    }
-
-    .stat-number {
-      font-size: 1.5rem;
-      font-weight: 700;
-      color: #2d2d2d;
-    }
-
-    .stat-label {
-      font-size: 0.875rem;
-      color: #8b8680;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-    }
-
-    .motivation-banner {
-      background: linear-gradient(135deg, #e6b17a, #f5f1e8);
-      border-radius: 16px;
-      padding: 1.5rem;
-      margin-bottom: 2rem;
-      border: 1px solid #e6b17a;
-    }
-
-    .motivation-content {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      color: #2d2d2d;
-      font-weight: 500;
-    }
-
-    .motivation-icon {
-      font-size: 1.25rem;
-    }
-
-    .badges-section,
-    .community-section {
-      background: #ffffff;
-      border-radius: 16px;
-      padding: 2rem;
-      margin-bottom: 2rem;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-      border: 1px solid #f5f1e8;
-    }
-
-    .section-title {
-      font-size: 1.25rem;
-      font-weight: 600;
-      color: #2d2d2d;
-      margin: 0 0 1.5rem 0;
-    }
-
-    .badges-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-      gap: 1rem;
-    }
-
-    .badge-item {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      padding: 1rem;
-      border-radius: 12px;
-      background: #f5f1e8;
-      transition: all 0.2s ease;
-      opacity: 0.5;
-    }
-
-    .badge-item.unlocked {
-      background: linear-gradient(135deg, #e6b17a, #f5f1e8);
-      opacity: 1;
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(230, 177, 122, 0.2);
-    }
-
-    .badge-icon {
-      font-size: 1.5rem;
-      width: 40px;
-      text-align: center;
-    }
-
-    .badge-info {
-      flex: 1;
-      min-width: 0;
-    }
-
-    .badge-name {
-      font-weight: 600;
-      color: #2d2d2d;
-      font-size: 0.875rem;
-    }
-
-    .badge-progress {
-      font-size: 0.75rem;
-      color: #8b8680;
-      margin-top: 0.25rem;
-    }
-
-    .impact-stats {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 2rem;
-    }
-
-    .impact-stat {
-      text-align: center;
-    }
-
-    .impact-number {
-      display: block;
-      font-size: 2rem;
-      font-weight: 700;
-      color: #e6b17a;
-      margin-bottom: 0.5rem;
-    }
-
-    .impact-label {
-      color: #5a564f;
-      font-size: 0.875rem;
-      line-height: 1.4;
-    }
-
-    .tabs-container {
-      margin-bottom: 2rem;
-    }
-
-    .tabs {
-      display: flex;
-      background: #ffffff;
-      border-radius: 12px;
-      padding: 0.25rem;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-      border: 1px solid #f5f1e8;
-    }
-
-    .tab {
-      flex: 1;
-      padding: 0.875rem 1.5rem;
-      background: none;
-      border: none;
-      border-radius: 8px;
-      font-size: 0.875rem;
-      font-weight: 500;
-      color: #8b8680;
-      cursor: pointer;
-      transition: all 0.2s ease;
-    }
-
-    .tab:hover {
-      color: #5a564f;
-      background: #f5f1e8;
-    }
-
-    .tab.active {
-      color: white;
-      background: #e6b17a;
-    }
-
-    .content-container {
-      background: #ffffff;
-      border-radius: 16px;
-      padding: 2rem;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-      border: 1px solid #f5f1e8;
-    }
-
-    .content-section {
-      display: flex;
-      flex-direction: column;
-      gap: 1.5rem;
-    }
-
-    .empty-state {
-      text-align: center;
-      padding: 3rem 1rem;
-      color: #8b8680;
-    }
-
-    .empty-state h3 {
-      font-size: 1.25rem;
-      margin: 0 0 0.5rem 0;
-      color: #5a564f;
-    }
-
-    .empty-state p {
-      margin: 0 0 1rem 0;
-      font-size: 1rem;
-    }
-
-    .empty-rewards {
-      margin-bottom: 1.5rem;
-    }
-
-    .reward-text {
-      display: inline-block;
-      background: linear-gradient(135deg, #e6b17a, #d4a574);
-      color: white;
-      padding: 0.5rem 1rem;
-      border-radius: 20px;
-      font-size: 0.875rem;
-      font-weight: 500;
-    }
-
-    .content-card {
-      padding: 1.5rem;
-      border: 1px solid #f5f1e8;
-      border-radius: 12px;
-      background: #fefcf7;
-      transition: all 0.2s ease;
-    }
-
-    .content-card:hover {
-      border-color: #e6b17a;
-      box-shadow: 0 2px 8px rgba(230, 177, 122, 0.1);
-    }
-
-    .card-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      margin-bottom: 0.75rem;
-    }
-
-    .card-title {
-      font-size: 1.125rem;
-      font-weight: 600;
-      color: #2d2d2d;
-      margin: 0;
-      line-height: 1.4;
-      flex: 1;
-    }
-
-    .card-meta {
-      font-size: 0.875rem;
-      color: #8b8680;
-      white-space: nowrap;
-      margin-left: 1rem;
-    }
-
-    .card-excerpt {
-      color: #5a564f;
-      line-height: 1.6;
-      margin: 0 0 1rem 0;
-    }
-
-    .bookmark-notes {
-      color: #5a564f;
-      line-height: 1.6;
-      margin: 0.5rem 0;
-      font-style: italic;
-      background: #f5f1e8;
-      padding: 0.75rem;
-      border-radius: 6px;
-    }
-
-    .card-footer {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-size: 0.875rem;
-      flex-wrap: wrap;
-      gap: 1rem;
-    }
-
-    .card-date {
-      color: #8b8680;
-    }
-
-    .card-actions {
-      display: flex;
-      gap: 0.5rem;
-      flex-wrap: wrap;
-    }
-
-    .card-stats {
-      display: flex;
-      gap: 1rem;
-    }
-
-    .stat-item {
-      color: #8b8680;
-    }
-
-    .action-btn {
-      padding: 0.375rem 0.875rem;
-      border-radius: 6px;
-      font-size: 0.875rem;
-      font-weight: 500;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      border: 1px solid #e6b17a;
-      background: #e6b17a;
-      color: white;
-    }
-
-    .action-btn:hover {
-      background: #d4a574;
-      border-color: #d4a574;
-    }
-
-    .action-btn.secondary {
-      background: transparent;
-      color: #e6b17a;
-    }
-
-    .action-btn.secondary:hover {
-      background: #e6b17a;
-      color: white;
-    }
-
-    .action-btn.danger {
-      background: transparent;
-      color: #dc3545;
-      border-color: #dc3545;
-    }
-
-    .action-btn.danger:hover {
-      background: #dc3545;
-      color: white;
-    }
-
-    .bookmark-tags {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.5rem;
-      margin-bottom: 1rem;
-    }
-
-    .tag {
-      padding: 0.25rem 0.5rem;
-      background: #f5f1e8;
-      color: #5a564f;
-      border-radius: 4px;
-      font-size: 0.75rem;
-      font-weight: 500;
-    }
-
-    @media (max-width: 768px) {
-      .profile-container {
-        padding: 1rem;
-      }
-
-      .profile-header {
-        flex-direction: column;
-        align-items: center;
-        text-align: center;
-        gap: 1.5rem;
-      }
-
-      .user-stats {
-        justify-content: center;
-        flex-wrap: wrap;
-      }
-
-      .tabs {
-        flex-direction: column;
-      }
-
-      .card-header {
-        flex-direction: column;
-        gap: 0.5rem;
-      }
-
-      .card-meta {
-        margin-left: 0;
-      }
-
-      .card-footer {
-        flex-direction: column;
-        align-items: flex-start;
-      }
-
-      .card-actions {
-        width: 100%;
-        justify-content: flex-start;
-      }
-
-      .badges-grid {
-        grid-template-columns: 1fr;
-      }
-
-      .impact-stats {
-        grid-template-columns: 1fr;
-        gap: 1.5rem;
-      }
-
-      .user-stats {
-        gap: 1rem;
-      }
-    }
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+  background-color: #FDFCF9;
+  min-height: 100vh;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.loading-state,
+.error-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  text-align: center;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #EDEAE3;
+  border-top: 4px solid #F7C843;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 1rem;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.profile-header {
+  display: flex;
+  gap: 2rem;
+  margin-bottom: 2rem;
+  background: #ffffff;
+  padding: 2rem;
+  border-radius: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  border: 1px solid #EDEAE3;
+}
+
+.avatar-section {
+  flex-shrink: 0;
+  position: relative;
+}
+
+.avatar-container {
+  position: relative;
+  cursor: pointer;
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  overflow: hidden;
+  transition: all 0.2s ease;
+}
+
+.avatar {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border: 3px solid #EDEAE3;
+}
+
+.level-badge {
+  position: absolute;
+  bottom: -5px;
+  right: -5px;
+  width: 36px;
+  height: 36px;
+  background: linear-gradient(135deg, #F7C843, #EDEAE3);
+  border: 3px solid white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(247, 200, 67, 0.3);
+}
+
+.level-number {
+  color: #2E2E2E;
+  font-weight: 700;
+  font-size: 0.875rem;
+}
+
+.profile-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.name-section {
+  margin-bottom: 1rem;
+}
+
+.user-name {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #2E2E2E;
+  margin: 0;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: color 0.2s ease;
+}
+
+.user-name:hover {
+  color: #F7C843;
+}
+
+.edit-icon {
+  font-size: 1rem;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.user-name:hover .edit-icon,
+.user-bio:hover .edit-icon {
+  opacity: 1;
+}
+
+.streak-section {
+  margin-bottom: 1rem;
+}
+
+.streak-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: linear-gradient(135deg, #F7C843, #EDEAE3);
+  color: #2E2E2E;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(247, 200, 67, 0.2);
+}
+
+.xp-section {
+  margin-bottom: 1rem;
+}
+
+.xp-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.xp-current {
+  font-weight: 600;
+  color: #2E2E2E;
+}
+
+.xp-next {
+  color: #666666;
+}
+
+.xp-bar {
+  height: 8px;
+  background: #EDEAE3;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.xp-progress {
+  height: 100%;
+  background: linear-gradient(90deg, #F7C843, #EDEAE3);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.follow-section {
+  margin-top: 1rem;
+}
+
+.follow-btn {
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 2px solid #F7C843;
+  background: #F7C843;
+  color: #2E2E2E;
+}
+
+.follow-btn:hover {
+  background: #EDEAE3;
+}
+
+.follow-btn.following {
+  background: transparent;
+  color: #F7C843;
+}
+
+.follow-btn.following:hover {
+  background: #EDEAE3;
+}
+
+.follow-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.name-edit,
+.bio-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.name-input {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #2E2E2E;
+  border: 2px solid #F7C843;
+  border-radius: 8px;
+  padding: 0.5rem;
+  background: #FDFCF9;
+  font-family: inherit;
+  outline: none;
+}
+
+.bio-section {
+  margin-bottom: 1.5rem;
+}
+
+.user-bio {
+  font-size: 1.125rem;
+  color: #666666;
+  line-height: 1.6;
+  margin: 0;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  transition: color 0.2s ease;
+}
+
+.user-bio:hover {
+  color: #2E2E2E;
+}
+
+.bio-textarea {
+  font-size: 1.125rem;
+  color: #2E2E2E;
+  border: 2px solid #F7C843;
+  border-radius: 8px;
+  padding: 0.75rem;
+  background: #FDFCF9;
+  font-family: inherit;
+  resize: vertical;
+  outline: none;
+  line-height: 1.6;
+  min-height: 80px;
+}
+
+.edit-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.save-btn,
+.cancel-btn,
+.create-btn,
+.retry-btn {
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+}
+
+.save-btn,
+.create-btn,
+.retry-btn {
+  background: #F7C843;
+  color: #2E2E2E;
+}
+
+.save-btn:hover,
+.create-btn:hover,
+.retry-btn:hover {
+  background: #EDEAE3;
+}
+
+.save-btn:disabled {
+  background: #666666;
+  cursor: not-allowed;
+}
+
+.cancel-btn {
+  background: #EDEAE3;
+  color: #666666;
+}
+
+.cancel-btn:hover {
+  background: #666666;
+  color: #fff;
+}
+
+.user-stats {
+  display: flex;
+  gap: 2rem;
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.stat-number {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #2E2E2E;
+}
+
+.stat-label {
+  font-size: 0.875rem;
+  color: #666666;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.motivation-banner {
+  background: linear-gradient(135deg, #F7C843, #EDEAE3);
+  border-radius: 16px;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+  border: 1px solid #F7C843;
+}
+
+.motivation-content {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: #2E2E2E;
+  font-weight: 500;
+}
+
+.motivation-icon {
+  font-size: 1.25rem;
+}
+
+.badges-section,
+.community-section {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  border: 1px solid #EDEAE3;
+}
+
+.section-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #2E2E2E;
+  margin: 0 0 1.5rem 0;
+}
+
+.badges-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.badge-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  border-radius: 12px;
+  background: #EDEAE3;
+  transition: all 0.2s ease;
+  opacity: 0.5;
+}
+
+.badge-item.unlocked {
+  background: linear-gradient(135deg, #F7C843, #EDEAE3);
+  opacity: 1;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(247, 200, 67, 0.2);
+}
+
+.badge-icon {
+  font-size: 1.5rem;
+  width: 40px;
+  text-align: center;
+}
+
+.badge-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.badge-name {
+  font-weight: 600;
+  color: #2E2E2E;
+  font-size: 0.875rem;
+}
+
+.badge-progress {
+  font-size: 0.75rem;
+  color: #666666;
+  margin-top: 0.25rem;
+}
+
+.impact-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 2rem;
+}
+
+.impact-stat {
+  text-align: center;
+}
+
+.impact-number {
+  display: block;
+  font-size: 2rem;
+  font-weight: 700;
+  color: #F7C843;
+  margin-bottom: 0.5rem;
+}
+
+.impact-label {
+  color: #666666;
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+
+.tabs-container {
+  margin-bottom: 2rem;
+}
+
+.tabs {
+  display: flex;
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 0.25rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  border: 1px solid #EDEAE3;
+}
+
+.tab {
+  flex: 1;
+  padding: 0.875rem 1.5rem;
+  background: none;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #666666;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tab:hover {
+  color: #2E2E2E;
+  background: #EDEAE3;
+}
+
+.tab.active {
+  color: #2E2E2E;
+  background: #F7C843;
+}
+
+.content-container {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 2rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  border: 1px solid #EDEAE3;
+}
+
+.content-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: #666666;
+}
+
+.empty-state h3 {
+  font-size: 1.25rem;
+  margin: 0 0 0.5rem 0;
+  color: #2E2E2E;
+}
+
+.empty-state p {
+  margin: 0 0 1rem 0;
+  font-size: 1rem;
+}
+
+.empty-rewards {
+  margin-bottom: 1.5rem;
+}
+
+.reward-text {
+  display: inline-block;
+  background: linear-gradient(135deg, #F7C843, #EDEAE3);
+  color: #2E2E2E;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.content-card {
+  padding: 1.5rem;
+  border: 1px solid #EDEAE3;
+  border-radius: 12px;
+  background: #FDFCF9;
+  transition: all 0.2s ease;
+}
+
+.content-card:hover {
+  border-color: #F7C843;
+  box-shadow: 0 2px 8px rgba(247, 200, 67, 0.1);
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 0.75rem;
+}
+
+.card-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #2E2E2E;
+  margin: 0;
+  line-height: 1.4;
+  flex: 1;
+}
+
+.card-meta {
+  font-size: 0.875rem;
+  color: #666666;
+  white-space: nowrap;
+  margin-left: 1rem;
+}
+
+.card-excerpt {
+  color: #666666;
+  line-height: 1.6;
+  margin: 0 0 1rem 0;
+}
+
+.bookmark-notes {
+  color: #666666;
+  line-height: 1.6;
+  margin: 0.5rem 0;
+  font-style: italic;
+  background: #EDEAE3;
+  padding: 0.75rem;
+  border-radius: 6px;
+}
+
+.card-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.875rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.card-date {
+  color: #666666;
+}
+
+.card-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.card-stats {
+  display: flex;
+  gap: 1rem;
+}
+
+.stat-item {
+  color: #666666;
+}
+
+.action-btn {
+  padding: 0.375rem 0.875rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid #F7C843;
+  background: #F7C843;
+  color: #2E2E2E;
+}
+
+.action-btn:hover {
+  background: #EDEAE3;
+  border-color: #EDEAE3;
+}
+
+.action-btn.secondary {
+  background: transparent;
+  color: #F7C843;
+}
+
+.action-btn.secondary:hover {
+  background: #F7C843;
+  color: #2E2E2E;
+}
+
+.action-btn.danger {
+  background: transparent;
+  color: #dc3545;
+  border-color: #dc3545;
+}
+
+.action-btn.danger:hover {
+  background: #dc3545;
+  color: white;
+}
+
+.bookmark-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.tag {
+  padding: 0.25rem 0.5rem;
+  background: #EDEAE3;
+  color: #666666;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+@media (max-width: 768px) {
+  .profile-container {
+    padding: 1rem;
+  }
+
+  .profile-header {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 1.5rem;
+  }
+
+  .user-stats {
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .tabs {
+    flex-direction: column;
+  }
+
+  .card-header {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .card-meta {
+    margin-left: 0;
+  }
+
+  .card-footer {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .card-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .badges-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .impact-stats {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+
+  .user-stats {
+    gap: 1rem;
+  }
+}
   `]
 })
 export class ProfileComponent implements OnInit, OnDestroy {
@@ -1083,131 +1084,118 @@ export class ProfileComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit() {
-    const currentUserId = sessionStorage.getItem('currentUserId') || this.currentUser?.uid || '';
+  const currentUserId = sessionStorage.getItem('currentUserId') || this.currentUser?.uid || '';
 
-    this.route.paramMap
-      .pipe(takeUntil(this.destroy$))
-      .subscribe(async paramMap => {
-        const uid = paramMap.get('id'); // /profile/:id
-        this.isOwnProfile = !uid || uid === currentUserId;
+  this.route.paramMap
+    .pipe(takeUntil(this.destroy$))
+    .subscribe(async paramMap => {
+      const uid = paramMap.get('id'); // /profile/:id
+      
+      // Set isOwnProfile BEFORE calling loadProfileData
+      this.isOwnProfile = !uid || uid === currentUserId;
+      
+      const targetUid = uid || currentUserId;
+      if (!targetUid) {
+        this.userProfile = null;
+        this.loading = false;
+        return;
+      }
 
-        const targetUid = uid || currentUserId;
-        if (!targetUid) {
-          this.userProfile = null;
-          this.loading = false;
-          return;
-        }
+      // Set default tab based on profile type
+      if (!this.isOwnProfile && this.activeTab !== 'articles') {
+        this.activeTab = 'articles'; // Default to articles for other users
+      }
 
-        await this.loadProfileData(targetUid);
+      await this.loadProfileData(targetUid);
 
-        // If viewing someone else, check follow status
-        if (!this.isOwnProfile && currentUserId) {
-          await this.checkFollowStatus(currentUserId, targetUid);
-        }
-
-        // Always load live counts from follow subcollections
-        await this.loadFollowCounts(targetUid);
-      });
-
-  }
+     
+    });
+}
 
   ngOnDestroy() {
     this.destroy$.next();
     this.destroy$.complete();
   }
 
-  async loadProfileData(uid?: string) {
-    this.loading = true;
-    try {
-      const targetUid = uid || sessionStorage.getItem('currentUserId') || this.currentUser?.uid || '';
-      if (!targetUid) { this.userProfile = null; this.loading = false; return; }
+ async loadProfileData(uid?: string) {
+  this.loading = true;
+  try {
+    // Fix: Don't fall back to current user when viewing other profiles
+    const targetUid =
+      uid ||
+      sessionStorage.getItem('currentUserId') ||
+      this.currentUser?.uid ||
+      '';
 
-      const profile = await this.profileService.getUserProfile(targetUid);
-      
-      if (!profile) {
-        this.userProfile = null;
-        this.loading = false;
-        return;
-      }
-      if(!profile?.stats){
-        profile.stats = {
+    if (!targetUid) {
+      this.userProfile = null;
+      this.loading = false;
+      return;
+    }
+
+    const profile = await this.profileService.getUserProfile(targetUid);
+
+    if (!profile) {
+      this.userProfile = null;
+      this.loading = false;
+      return;
+    }
+
+    // Initialize stats if missing
+    if (!profile?.stats) {
+      profile.stats = {
         storiesPublished: 0,
         draftsCount: 0,
         bookmarksCount: 0,
         totalViews: 0,
         totalVotes: 0,
         followersCount: 0,
-        followingCount: 0
+        followingCount: 0,
       };
-      }
-      this.userProfile = profile;
+    }
 
-      // Initialize badges early
-      this.initializeBadges();
+    this.userProfile = profile;
+    this.initializeBadges();
 
-      // Load related lists
-      const [drafts, stories, bookmarks] = await Promise.all([
+    // --- FIX: use tuple type for predictable results ---
+    let loadPromises: [
+      Promise<Draft[]>,
+      Promise<Story[]>,
+      Promise<Bookmark[]>
+    ];
+
+    if (this.isOwnProfile) {
+      // Only load private data (drafts, bookmarks) for own profile
+      loadPromises = [
         this.draftsService.getDraftsByAuthor(targetUid, 20),
         this.profileService.getUserPublishedStories(targetUid),
-        this.profileService.getUserBookmarks(targetUid)
-      ]);
-
-      this.drafts = drafts;
-      this.stories = stories;
-      console.log(this.stories)
-      this.bookmarks = bookmarks;
-      console.log(this.bookmarks)
-
-      // Refresh badge progress now that we have data
-      this.updateBadgeProgress();
-
-    } catch (e) {
-      console.error('Error loading profile:', e);
-      this.userProfile = null;
-    } finally {
-      this.loading = false;
+        this.profileService.getUserBookmarks(targetUid),
+      ];
+    } else {
+      // For other users, only load public stories
+      loadPromises = [
+        Promise.resolve([] as Draft[]),
+        this.profileService.getUserPublishedStories(targetUid),
+        Promise.resolve([] as Bookmark[]),
+      ];
     }
 
-  }
+    const [drafts, stories, bookmarks] = await Promise.all(loadPromises);
 
-  // ——— FOLLOW HELPERS ———
-  async checkFollowStatus(currentUid: string, targetUid: string) {
-    try {
-      this.isFollowing = await this.profileService.isFollowing(currentUid, targetUid);
-    } catch (e) {
-      console.error('Error checking follow status:', e);
-      this.isFollowing = false;
-    }
-  }
+    this.drafts = drafts;
+    this.stories = stories;
+    this.bookmarks = bookmarks;
 
-  async loadFollowCounts(targetUid: string) {
-  if (!this.userProfile) return;
-  
-  try {
-    const [followers, following] = await Promise.all([
-      this.profileService.getFollowersCount(targetUid),
-      this.profileService.getFollowingCount(targetUid)
-    ]);
-    
-    // Ensure stats object exists before updating
-    if (!this.userProfile.stats) {
-      this.userProfile.stats = {
-        storiesPublished: 0,
-        draftsCount: 0,
-        bookmarksCount: 0,
-        totalViews: 0,
-        totalVotes: 0,
-        followersCount: 0,
-        followingCount: 0
-      };
-    }
-    
-    this.userProfile.stats.followersCount = followers;
-    this.userProfile.stats.followingCount = following;
+    // Update badge progress with available data
+    this.updateBadgeProgress();
   } catch (e) {
-    console.error('Error loading follow counts:', e);
+    console.error('Error loading profile:', e);
+    this.userProfile = null;
+  } finally {
+    this.loading = false;
   }
 }
+
 
   async toggleFollow() {
     if (!this.currentUser || !this.userProfile || this.isOwnProfile) return;
@@ -1219,13 +1207,15 @@ export class ProfileComponent implements OnInit, OnDestroy {
     try {
       if (this.isFollowing) {
         await this.profileService.unfollowUser(me, them);
+        this.userProfile.stats.followersCount--;
+        console.log(this.userProfile.stats)
         this.isFollowing = false;
       } else {
         await this.profileService.followUser(me, them);
+        this.userProfile.stats.followersCount++;
         this.isFollowing = true;
       }
       // Refresh counts after change
-      await this.loadFollowCounts(them);
     } catch (error) {
       console.error('Error toggling follow:', error);
     } finally {
@@ -1305,20 +1295,22 @@ export class ProfileComponent implements OnInit, OnDestroy {
 
     const stats = this.userProfile.stats || {};
     const totalWords = this.calculateTotalWords();
+    console.log(totalWords)
     const totalVotes = this.calculateTotalVotes();
+    console.log(this.drafts.length)
 
     // Update badge progress
     this.badges.forEach(badge => {
       switch (badge.id) {
         case 'first-draft':
-          badge.unlocked = (stats.draftsCount || 0) > 0;
+          badge.unlocked = (this.drafts.length || 0) > 0;
           break;
         case 'first-publish':
-          badge.unlocked = (stats.storiesPublished || 0) > 0;
+          badge.unlocked = (this.stories.length || 0) > 0;
           break;
         case 'prolific-writer':
-          badge.progress = Math.min(stats.storiesPublished || 0, badge.requirement!);
-          badge.unlocked = (stats.storiesPublished || 0) >= badge.requirement!;
+          badge.progress = Math.min(this.stories.length || 0, badge.requirement!);
+          badge.unlocked = (this.stories.length|| 0) >= badge.requirement!;
           break;
         case 'word-master':
           badge.progress = Math.min(totalWords, badge.requirement!);
@@ -1340,11 +1332,17 @@ export class ProfileComponent implements OnInit, OnDestroy {
     });
   }
 
-  calculateTotalWords(): number {
-    return [...this.drafts, ...this.stories].reduce((total, item) => {
-      return total + (item.wordCount || 0);
-    }, 0);
-  }
+calculateTotalWords(): number {
+  return [...this.drafts, ...this.stories].reduce((total, item) => {
+    const count = item.wordCount 
+      ? Number(item.wordCount) 
+      : (item.content ? item.content.trim().split(/\s+/).length : 0);
+
+    return total + count;
+  }, 0);
+}
+
+
 
   calculateTotalVotes(): number {
     return this.stories.reduce((total, story) => {

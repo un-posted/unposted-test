@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, inject } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -18,220 +18,400 @@ import { DraftsService } from './services/draft.service';
     <!-- Authentication Check -->
     <div *ngIf="!currentUser && !authLoading" class="auth-required">
       <div class="auth-container">
-        <h1 class="auth-logo">✍️ Write</h1>
-        <h2>Share Your Story</h2>
-        <p>Join our community and tell the stories that matter to you.</p>
+        <div class="auth-icon">✍️</div>
+        <h1>Start writing</h1>
+        <p>Join thousands of writers sharing their stories</p>
         <div class="auth-buttons">
           <a routerLink="/login" class="btn-primary">Sign In</a>
-          <a routerLink="/register" class="btn-secondary">Join Us</a>
+          <a routerLink="/register" class="btn-outline">Create Account</a>
         </div>
       </div>
     </div>
 
     <!-- Loading State -->
     <div *ngIf="authLoading" class="loading-state">
-      <div class="spinner"></div>
-      <p>Loading...</p>
+      <div class="loading-spinner"></div>
     </div>
 
-    <!-- Write Story Form (for authenticated users) -->
-    <div *ngIf="currentUser && !authLoading" class="write-story-container">
-      <!-- Header -->
-      <header class="header">
-        <div class="autosave-indicator" [class.visible]="successMessage">
-          {{ successMessage }}
+    <!-- Write Story Form -->
+    <div *ngIf="currentUser && !authLoading" class="write-container">
+      
+      <!-- Top Bar -->
+      <div class="top-bar">
+        <div class="top-bar-left">
+          <button class="logo-btn" (click)="navigateHome()">
+            <span class="logo-icon">✍️</span>
+            <span class="logo-text">Write</span>
+          </button>
+          <div class="draft-status" *ngIf="isDraftSaved">
+            <span class="status-dot"></span>
+            Saved
+          </div>
         </div>
-      </header>
+        
+        <div class="top-bar-right">
+          <button 
+            class="btn-ghost" 
+            (click)="saveDraft()" 
+            [disabled]="!canSave() || isSubmitting"
+            [class.saving]="isSubmitting && formData.status === 'draft'"
+          >
+            {{ isSubmitting && formData.status === 'draft' ? 'Saving...' : 'Save draft' }}
+          </button>
+          
+          <button 
+            class="btn-publish" 
+            (click)="openPublishModal()"
+            [disabled]="!canSave() || isSubmitting"
+          >
+            Publish
+          </button>
+          
+          <div class="user-avatar">
+            <img [src]="getUserAvatar()" [alt]="getUserName()" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Main Content -->
+      <div class="main-content">
+        <div class="story-content">
+          
+          <!-- Cover Image Section -->
+          <div class="cover-section" *ngIf="showCoverOptions || formData.featuredImage">
+            <div class="cover-container" *ngIf="formData.featuredImage; else coverUpload">
+              <img [src]="formData.featuredImage" alt="Cover" class="cover-image" />
+              <div class="cover-overlay">
+                <button class="btn-cover-action" (click)="removeCover()">Remove</button>
+                <button class="btn-cover-action" (click)="changeCover()">Change</button>
+              </div>
+            </div>
+            <ng-template #coverUpload>
+              <div class="cover-upload-area" (click)="fileInput.click()">
+                <div class="upload-content">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                    <circle cx="8.5" cy="8.5" r="1.5"/>
+                    <polyline points="21,15 16,10 5,21"/>
+                  </svg>
+                  <span>Add a cover image</span>
+                </div>
+              </div>
+            </ng-template>
+            <input #fileInput type="file" accept="image/*" style="display: none" (change)="onCoverImageSelected($event)" />
+          </div>
+
+          <!-- Add Cover Button -->
+          <button 
+            *ngIf="!showCoverOptions && !formData.featuredImage" 
+            class="add-cover-btn"
+            (click)="showCoverOptions = true"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+              <circle cx="8.5" cy="8.5" r="1.5"/>
+              <polyline points="21,15 16,10 5,21"/>
+            </svg>
+            Add cover
+          </button>
+
+          <!-- Title -->
+          <div class="title-container">
+            <textarea 
+              #titleTextarea
+              class="title-input" 
+              [(ngModel)]="formData.title"
+              placeholder="Title"
+              rows="1"
+              (input)="adjustTextareaHeight(titleTextarea)"
+              maxlength="200"
+              required
+            ></textarea>
+          </div>
+
+          <!-- Subtitle -->
+          <div class="subtitle-container">
+            <textarea 
+              #subtitleTextarea
+              class="subtitle-input" 
+              [(ngModel)]="formData.excerpt"
+              placeholder="Write a subtitle..."
+              rows="1"
+              (input)="adjustTextareaHeight(subtitleTextarea)"
+              maxlength="150"
+            ></textarea>
+          </div>
+
+          <!-- Floating Toolbar -->
+          <div class="editor-toolbar" [class.visible]="showToolbar">
+            <div class="toolbar-group">
+              <button type="button" (click)="formatText('bold')" [class.active]="isFormatActive('bold')">
+                <strong>B</strong>
+              </button>
+              <button type="button" (click)="formatText('italic')" [class.active]="isFormatActive('italic')">
+                <em>I</em>
+              </button>
+            </div>
+            
+            <div class="toolbar-divider"></div>
+            
+            <div class="toolbar-group">
+              <button type="button" (click)="insertLink()" title="Link">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                  <path d="10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                  <path d="14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+                </svg>
+              </button>
+              <button type="button" (click)="formatText('formatBlock', 'h2')" title="Heading">
+                <strong>H</strong>
+              </button>
+            </div>
+            
+            <div class="toolbar-divider"></div>
+            
+            <div class="toolbar-group">
+              <button type="button" (click)="formatText('insertUnorderedList')" title="Bullet List">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                  <line x1="8" y1="6" x2="21" y2="6"/>
+                  <line x1="8" y1="12" x2="21" y2="12"/>
+                  <line x1="8" y1="18" x2="21" y2="18"/>
+                  <line x1="3" y1="6" x2="3.01" y2="6"/>
+                  <line x1="3" y1="12" x2="3.01" y2="12"/>
+                  <line x1="3" y1="18" x2="3.01" y2="18"/>
+                </svg>
+              </button>
+              <button type="button" (click)="formatText('insertOrderedList')" title="Numbered List">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                  <line x1="10" y1="6" x2="21" y2="6"/>
+                  <line x1="10" y1="12" x2="21" y2="12"/>
+                  <line x1="10" y1="18" x2="21" y2="18"/>
+                  <path d="4 6h1v4"/>
+                  <path d="4 10h2l-2 2h2"/>
+                  <path d="6 14v2h-2"/>
+                  <path d="4 16h2"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- Content Editor -->
+          <div 
+            class="content-editor"
+            [class.rtl]="isRTL"
+            contenteditable="true"
+            (input)="onContentInput($event)"
+            (focus)="onEditorFocus()"
+            (blur)="onEditorBlur()"
+            (keyup)="onEditorKeyup($event)"
+            (paste)="onEditorPaste($event)"
+            [attr.dir]="isRTL ? 'rtl' : 'ltr'"
+            #contentEditor
+          >
+          </div>
+
+          <!-- Editor Placeholder -->
+          <div class="editor-placeholder" *ngIf="!formData.content || formData.content.length === 0">
+            Tell your story...
+          </div>
+
+          <!-- Writing Stats -->
+          <div class="writing-stats" *ngIf="formData.content && formData.content.length > 0">
+            <span>{{ getWordCount() }} words</span>
+            <span class="stat-divider">•</span>
+            <span>{{ getReadTime() }} min read</span>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Publish Modal -->
+      <div class="modal-overlay" *ngIf="showPublishModal" (click)="closePublishModal()">
+        <div class="publish-modal" (click)="$event.stopPropagation()">
+          <div class="modal-header">
+            <h2>Story preview</h2>
+            <button class="modal-close" (click)="closePublishModal()">×</button>
+          </div>
+          
+          <div class="modal-content">
+            <!-- Preview -->
+            <div class="story-preview">
+              <div class="preview-cover" *ngIf="formData.featuredImage">
+                <img [src]="formData.featuredImage" alt="Cover" />
+              </div>
+              <h1 class="preview-title">{{ formData.title || 'Untitled Story' }}</h1>
+              <p class="preview-subtitle" *ngIf="formData.excerpt">{{ formData.excerpt }}</p>
+              <div class="preview-meta">
+                <div class="author-info">
+                  <img [src]="getUserAvatar()" [alt]="getUserName()" class="author-avatar" />
+                  <span class="author-name">{{ getUserName() }}</span>
+                </div>
+                <div class="story-stats">
+                  {{ getWordCount() }} words • {{ getReadTime() }} min read
+                </div>
+              </div>
+            </div>
+
+            <!-- Publishing Options -->
+            <div class="publish-options">
+              
+              <!-- Category -->
+              <div class="form-group">
+                <label>Category</label>
+                <select [(ngModel)]="formData.category" name="category" required class="select-input">
+                  <option value="" disabled>Choose a category</option>
+                  <option *ngFor="let c of categories" [value]="c">{{ c }}</option>
+                </select>
+              </div>
+
+              <!-- Language & Emoji -->
+              <div class="form-row">
+                <div class="form-group">
+                  <label>Language</label>
+                  <select [(ngModel)]="formData.language" name="language" required class="select-input">
+                    <option value="" disabled>Select language</option>
+                    <option *ngFor="let l of languages" [value]="l.value">{{ l.label }}</option>
+                  </select>
+                </div>
+                
+                <div class="form-group">
+                  <label>Emoji</label>
+                  <div class="emoji-container">
+                    <input
+                      type="text"
+                      [(ngModel)]="formData.emoji"
+                      name="emoji"
+                      placeholder="📝"
+                      maxlength="2"
+                      required
+                      class="emoji-input"
+                      (focus)="showEmojiSuggestions = true"
+                      (blur)="hideEmojiSuggestions()"
+                    />
+                    <div class="emoji-suggestions" *ngIf="showEmojiSuggestions">
+                      <button 
+                        *ngFor="let emoji of emojiSuggestions" 
+                        type="button"
+                        class="emoji-option"
+                        (click)="selectEmoji(emoji)"
+                      >
+                        {{ emoji }}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Tags -->
+              <div class="form-group">
+                <label>Tags (optional)</label>
+                <div class="tags-section">
+                  <div class="selected-tags" *ngIf="selectedTags.length > 0">
+                    <span *ngFor="let tag of selectedTags" class="tag-chip">
+                      {{ tag }}
+                      <button type="button" (click)="removeTag(tag)" class="tag-remove">×</button>
+                    </span>
+                  </div>
+                  <input
+                    type="text"
+                    [(ngModel)]="tagsInput"
+                    name="tags"
+                    placeholder="Add up to 5 tags..."
+                    class="tags-input"
+                    (keydown.enter)="addTag($event)"
+                  />
+                </div>
+              </div>
+
+            </div>
+          </div>
+          
+          <div class="modal-actions">
+            <button class="btn-outline" (click)="closePublishModal()">Cancel</button>
+            <button 
+              class="btn-publish" 
+              (click)="submitStory()"
+              [disabled]="!isValidForPublish() || isSubmitting"
+            >
+              {{ isSubmitting ? 'Publishing...' : 'Publish now' }}
+            </button>
+          </div>
+        </div>
+      </div>
 
       <!-- Error Message -->
-      <div *ngIf="errorMessage" class="message error-message">
+      <div class="toast error-toast" *ngIf="errorMessage" [class.visible]="!!errorMessage">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="15" y1="9" x2="9" y2="15"/>
+          <line x1="9" y1="9" x2="15" y2="15"/>
+        </svg>
         {{ errorMessage }}
       </div>
 
-      <form class="story-form" (ngSubmit)="submitStory()" #storyForm="ngForm">
-        
-        <!-- Basic Info Row -->
-        <div class="form-row">
-          <select [(ngModel)]="formData.category" name="category" required class="select-input">
-            <option value="" disabled selected>Category</option>
-            <option *ngFor="let c of categories" [value]="c">{{ c }}</option>
-          </select>
-          
-          <select [(ngModel)]="formData.language" name="language" required class="select-input">
-            <option value="" disabled selected>Language</option>
-            <option *ngFor="let l of languages" [value]="l.value">{{ l.label }}</option>
-          </select>
-          
-          <input
-            type="text"
-            [(ngModel)]="formData.emoji"
-            name="emoji"
-            placeholder="📝"
-            maxlength="2"
-            required
-            class="emoji-input"
-            (focus)="showEmojiSuggestions = true"
-            (blur)="hideEmojiSuggestions()"
-          />
-        </div>
+      <!-- Success Message -->
+      <div class="toast success-toast" *ngIf="successMessage" [class.visible]="!!successMessage">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <polyline points="20,6 9,17 4,12"/>
+        </svg>
+        {{ successMessage }}
+      </div>
 
-        <!-- Title -->
-        <input
-          type="text"
-          class="title-input"
-          [(ngModel)]="formData.title"
-          name="title"
-          placeholder="Title"
-          maxlength="200"
-          required
-        />
-
-        <!-- Subtitle -->
-        <input
-          type="text"
-          class="subtitle-input"
-          [(ngModel)]="formData.excerpt"
-          name="excerpt"
-          placeholder="Brief summary (optional)"
-          maxlength="150"
-        />
-
-        <!-- Floating Toolbar -->
-        <div class="editor-toolbar">
-          <button type="button" (click)="formatText('bold')"><b>B</b></button>
-          <button type="button" (click)="formatText('italic')"><i>I</i></button>
-          <button type="button" (click)="formatText('underline')"><u>U</u></button>
-          <button type="button" (click)="formatText('insertUnorderedList')">•</button>
-          <button type="button" (click)="formatText('insertOrderedList')">1.</button>
-          <button type="button" (click)="formatText('formatBlock', 'h2')">H2</button>
-          <button type="button" (click)="toggleDirection()">{{ isRTL ? 'LTR' : 'RTL' }}</button>
-          <!--<button type="button" (click)="toggleWritingAssistant()">💡</button>-->
-        </div>
-
-        <!-- Content Editor -->
-        <div class="editor-container">
-          <div
-  class="content-editor"
-  [class.rtl]="isRTL"
-  contenteditable="true"
-  (input)="onContentInput($event)"
-  (blur)="onContentBlur($event)"
-  [innerHTML]="formData.content"
-  placeholder="Tell your story..."
-  [attr.dir]="isRTL ? 'rtl' : 'ltr'"
-  #contentEditor
-></div>
-          
-          <!-- Writing Assistant -->
-          <div class="writing-assistant" *ngIf="showWritingAssistant">
-            <div class="assistant-header">
-              <span>Writing Tips</span>
-              <button type="button" (click)="toggleWritingAssistant()">×</button>
-            </div>
-            <div class="assistant-content">
-              <div *ngFor="let suggestion of writingSuggestions" class="tip">
-                {{ suggestion }}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Editor Stats -->
-        <div class="editor-stats">
-          <span>{{ getWordCount() }} words</span>
-          <span>{{ getReadTime() }} min read</span>
-          <span>{{ formData.content?.length || 0 }} / 10,000 chars</span>
-        </div>
-
-        <!-- Tags -->
-        <!-- Tags -->
-<div class="tag-section">
-  <!-- Display selected tags -->
-  
-  
-  <!-- Input for new tags -->
-  <input
-    type="text"
-    [(ngModel)]="tagsInput"
-    name="tags"
-    placeholder="Add tags (press Enter)"
-    class="tags-input"
-    (keydown.enter)="addTag($event)"
-  />
-
-  <div class="selected-tags" *ngIf="selectedTags.length > 0">
-    <span *ngFor="let tag of selectedTags" class="tag-chip">
-      {{ tag }}
-      <button type="button" (click)="removeTag(tag)" class="tag-remove">×</button>
-    </span>
-  </div>
-</div>
-
-        <!-- Visibility Toggle 
-        <div class="visibility-section">
-          <label class="checkbox-label">
-            <input type="checkbox" [(ngModel)]="formData.isPublic" name="isPublic" />
-            <span class="checkbox-text">Make story discoverable by others</span>
-          </label>
-        </div>-->
-
-        <!-- Actions -->
-        <div class="form-actions">
-          <button type="button" class="btn-secondary" (click)="saveDraft()" [disabled]="!canSave() || isSubmitting">
-            {{ isSubmitting && formData.status === 'draft' ? 'Saving...' : 'Save Draft' }}
-          </button>
-          <button type="submit" class="btn-primary" [disabled]="!storyForm.form.valid || isSubmitting">
-            {{ isSubmitting && formData.status === 'published' ? 'Publishing...' : 'Publish' }}
-          </button>
-        </div>
-      </form>
     </div>
   `,
   styles: [`
     :host {
-      --bg: #fafafa;
-      --text: #242424;
-      --muted: #666;
-      --border: #e5e5e5;
-      --accent: #fbbf24;;
-      --error: #e63946;
-      --success: #22c55e;
+      --primary: #1a8917;
+      --primary-hover: #156b13;
+      --text-primary: #242424;
+      --text-secondary: #6b6b6b;
+      --text-muted: #8b8b8b;
+      --border-light: #e6e6e6;
+      --border-medium: #d1d1d1;
+      --background: #ffffff;
+      --background-secondary: #f9f9f9;
+      --shadow-light: 0 1px 3px rgba(0,0,0,0.05);
+      --shadow-medium: 0 4px 12px rgba(0,0,0,0.1);
+      --shadow-heavy: 0 8px 24px rgba(0,0,0,0.15);
+      --radius: 6px;
+      --font-serif: Charter, Georgia, serif;
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     }
 
     /* Auth Required */
     .auth-required {
       min-height: 100vh;
-      background: var(--bg);
       display: flex;
       align-items: center;
       justify-content: center;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      font-family: var(--font-sans);
     }
 
     .auth-container {
       text-align: center;
       background: white;
       padding: 3rem 2rem;
-      border-radius: 8px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      border-radius: 12px;
+      box-shadow: var(--shadow-heavy);
       max-width: 400px;
     }
 
-    .auth-logo {
-      font-size: 2rem;
+    .auth-icon {
+      font-size: 3rem;
       margin-bottom: 1rem;
-      color: var(--text);
     }
 
-    .auth-container h2 {
-      margin-bottom: 1rem;
-      color: var(--text);
-      font-weight: 600;
+    .auth-container h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+      color: var(--text-primary);
     }
 
     .auth-container p {
-      color: var(--muted);
+      color: var(--text-secondary);
       margin-bottom: 2rem;
+      font-size: 1.1rem;
     }
 
     .auth-buttons {
@@ -240,429 +420,20 @@ import { DraftsService } from './services/draft.service';
       gap: 1rem;
     }
 
-    .auth-buttons a {
-      padding: 0.75rem 1.5rem;
-      border-radius: 6px;
-      text-decoration: none;
-      font-weight: 500;
-      transition: all 0.2s;
-    }
-
     /* Loading State */
     .loading-state {
       min-height: 100vh;
-      background: var(--bg);
       display: flex;
-      flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: 1rem;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--background);
     }
 
-    /* Main Container */
-    .write-story-container {
-      min-height: 100vh;
-      background: white;
-      padding: 2rem;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    }
-
-    /* Header */
-    .header {
-      width: 100%;
-      max-width: 800px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 2rem;
-    }
-
-    .logo {
-      font-size: 1.5rem;
-      font-weight: bold;
-      color: var(--text);
-      margin: 0;
-    }
-
-    .user-info {
-      color: var(--muted);
-      font-size: 0.9rem;
-    }
-
-    .autosave-indicator {
-      font-size: 0.9rem;
-      color: var(--success);
-      opacity: 0;
-      transition: opacity .3s;
-    }
-    .autosave-indicator.visible { opacity: 1; }
-
-    /* Messages */
-    .message {
-      width: 100%;
-      max-width: 800px;
-      padding: 1rem;
-      border-radius: 6px;
-      margin-bottom: 1rem;
-      font-size: 0.9rem;
-    }
-
-    .error-message {
-      background: #fef2f2;
-      color: var(--error);
-      border: 1px solid #fecaca;
-    }
-
-    /* Story Form */
-    .story-form {
-      width: 100%;
-      max-width: 800px;
-      display: flex;
-      flex-direction: column;
-    }
-
-    /* Form Row */
-    .form-row {
-      display: grid;
-      grid-template-columns: 2fr 2fr 1fr;
-      gap: 1rem;
-      margin-bottom: 1rem;
-        position: relative; /* Add this */
-
-    }
-
-    .select-input {
-  padding: 0.75rem 2.5rem 0.75rem 0.75rem; /* Add right padding for arrow */
-  border: 2px solid var(--border);
-  border-radius: 8px;
-  background: white url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6,9 12,15 18,9'%3e%3c/polyline%3e%3c/svg%3e") no-repeat right 0.75rem center;
-  background-size: 16px;
-  font-size: 1rem;
-  outline: none;
-  transition: all 0.2s;
-  appearance: none;
-  cursor: pointer;
-}
-
-.select-input:focus {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.1);
-}
-
-.select-input:hover {
-  border-color: #d1d5db;
-}
-
-    .emoji-input {
-      padding: 0.75rem;
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      background: white;
-      font-size: 1.5rem;
-      text-align: center;
-      outline: none;
-      transition: border-color 0.2s;
-    }
-
-    .emoji-input:focus {
-      border-color: var(--accent);
-    }
-
-    /* Title and Subtitle */
-    .title-input {
-      font-size: 2.5rem;
-      font-weight: 700;
-      border: none;
-      outline: none;
-      background: transparent;
-      margin-bottom: 1rem;
-      color: var(--text);
-    }
-
-    .title-input::placeholder {
-      color: var(--muted);
-    }
-
-    .subtitle-input {
-      font-size: 1.3rem;
-      font-weight: 400;
-      border: none;
-      outline: none;
-      background: transparent;
-      color: var(--muted);
-      margin-bottom: 2rem;
-    }
-
-    .subtitle-input::placeholder {
-      color: var(--muted);
-    }
-
-    /* Toolbar */
-    .editor-toolbar {
-      display: flex;
-      gap: 0.5rem;
-      padding: 0.5rem;
-      background: white;
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      align-self: center;
-      margin-bottom: 1rem;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-    }
-
-    .editor-toolbar button {
-      border: none;
-      background: none;
-      padding: 0.4rem 0.7rem;
-      font-size: 1rem;
-      cursor: pointer;
-      border-radius: 4px;
-      transition: background 0.2s;
-    }
-
-    .editor-toolbar button:hover {
-      background: var(--border);
-    }
-
-    /* Editor Container */
-    .editor-container {
-      position: relative;
-      margin-bottom: 1rem;
-    }
-
-    .content-editor {
-  min-height: 400px;
-  padding: 1rem 0;
-  font-size: 1.2rem;
-  line-height: 1.8;
-  font-family: Georgia, "Times New Roman", serif;
-  color: var(--text);
-  border: none;
-  outline: none;
-  white-space: pre-wrap;
-  word-wrap: break-word;
-  overflow-wrap: break-word;
-}
-
-.content-editor:empty::before {
-  content: attr(placeholder);
-  color: var(--muted);
-  font-style: italic;
-}
-
-.content-editor.rtl {
-  direction: rtl;
-  text-align: right;
-  unicode-bidi: plaintext;
-}
-
-.content-editor.rtl * {
-  direction: rtl;
-  text-align: right;
-}
-
-/* Fix for mixed content */
-.content-editor[dir="rtl"] {
-  direction: rtl;
-  text-align: start;
-}
-
-.content-editor[dir="ltr"] {
-  direction: ltr;
-  text-align: start;
-}
-
-    /* Writing Assistant */
-    .writing-assistant {
-      position: absolute;
-      top: 0;
-      right: 0;
-      width: 300px;
-      background: white;
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-      z-index: 10;
-    }
-
-    .assistant-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 1rem;
-      border-bottom: 1px solid var(--border);
-      font-weight: 600;
-    }
-    .content-editor.rtl {
-  direction: rtl;
-  text-align: right;
-}
-
-.content-editor.rtl h2,
-.content-editor.rtl p {
-  text-align: right;
-}
-    .assistant-header button {
-      border: none;
-      background: none;
-      font-size: 1.2rem;
-      cursor: pointer;
-      color: var(--muted);
-    }
-
-    .assistant-content {
-      padding: 1rem;
-    }
-
-    .tip {
-      font-size: 0.9rem;
-      color: var(--muted);
-      margin-bottom: 0.75rem;
-      padding: 0.5rem;
-      background: #f8f9fa;
-      border-radius: 4px;
-    }
-
-    .tip:last-child {
-      margin-bottom: 0;
-    }
-
-    /* Editor Stats */
-    .editor-stats {
-      display: flex;
-      gap: 1rem;
-      font-size: 0.85rem;
-      color: var(--muted);
-      margin-bottom: 1rem;
-      padding-bottom: 1rem;
-      border-bottom: 1px solid var(--border);
-    }
-
-    /* Tags */
-    .tag-section {
-      margin-bottom: 1rem;
-    }
-
-    .tags-input {
-      width: 100%;
-      padding: 0.75rem;
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      font-size: 1rem;
-      outline: none;
-      transition: border-color 0.2s;
-    }
-
-    .tags-input:focus {
-      border-color: var(--accent);
-    }
-.selected-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-bottom: 0.5rem;
-}
-
-.tag-chip {
-  display: inline-flex;
-  align-items: center;
-  background: var(--accent);
-  color: white;
-  padding: 0.25rem 0.5rem;
-  border-radius: 16px;
-  font-size: 0.85rem;
-  gap: 0.25rem;
-}
-
-.tag-remove {
-  border: none;
-  background: none;
-  color: white;
-  cursor: pointer;
-  font-size: 1rem;
-  padding: 0;
-  line-height: 1;
-}
-    /* Visibility */
-    .visibility-section {
-      margin-bottom: 2rem;
-    }
-
-    .checkbox-label {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      cursor: pointer;
-      font-size: 0.9rem;
-      color: var(--muted);
-    }
-
-    .checkbox-label input[type="checkbox"] {
-      margin: 0;
-    }
-
-    /* Actions */
-    .form-actions {
-      display: flex;
-      justify-content: flex-end;
-      gap: 1rem;
-      margin-top: 2rem;
-      padding-top: 2rem;
-      border-top: 1px solid var(--border);
-    }
-
-    .btn-primary {
-      background: #fbbf24;
-      color: white;
-      border: none;
-      padding: 0.75rem 1.5rem;
-      border-radius: 6px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: background .2s;
-      text-decoration: none;
-      display: inline-block;
-      text-align: center;
-    }
-
-    .btn-primary:hover:not(:disabled) {
-      background: #f59e0b;
-    }
-
-    .btn-secondary {
-      background: white;
-      border: 1px solid var(--border);
-      padding: 0.75rem 1.5rem;
-      border-radius: 6px;
-      cursor: pointer;
-      font-weight: 500;
-      transition: all 0.2s;
-      text-decoration: none;
-      display: inline-block;
-      text-align: center;
-      color: var(--text);
-    }
-
-    .btn-secondary:hover:not(:disabled) {
-      background: #f5f5f5;
-    }
-
-    .btn-primary:disabled,
-    .btn-secondary:disabled {
-      opacity: 0.6;
-      cursor: not-allowed;
-    }
-
-    /* Spinner */
-    .spinner {
-      width: 32px;
-      height: 32px;
-      border: 3px solid #f3f3f3;
-      border-top: 3px solid var(--accent);
+    .loading-spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid var(--border-light);
+      border-top: 3px solid var(--primary);
       border-radius: 50%;
       animation: spin 1s linear infinite;
     }
@@ -672,14 +443,806 @@ import { DraftsService } from './services/draft.service';
       100% { transform: rotate(360deg); }
     }
 
+    /* Main Container */
+    .write-container {
+      min-height: 100vh;
+      background: var(--background);
+      font-family: var(--font-sans);
+    }
+
+    /* Top Bar */
+    .top-bar {
+      position: sticky;
+      top: 0;
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid var(--border-light);
+      padding: 0.75rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 100;
+    }
+
+    .top-bar-left {
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+    }
+
+    .logo-btn {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      border: none;
+      background: none;
+      font-size: 1.2rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      cursor: pointer;
+      padding: 0.5rem 0;
+    }
+
+    .logo-icon {
+      font-size: 1.5rem;
+    }
+
+    .draft-status {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--primary);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .top-bar-right {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .user-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      overflow: hidden;
+    }
+
+    .user-avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    /* Main Content */
+    .main-content {
+      max-width: 740px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+
+    .story-content {
+      position: relative;
+    }
+
+    /* Cover Section */
+    .cover-section {
+      margin-bottom: 2rem;
+    }
+
+    .cover-container {
+      position: relative;
+      border-radius: var(--radius);
+      overflow: hidden;
+      background: var(--background-secondary);
+    }
+
+    .cover-image {
+      width: 100%;
+      height: 300px;
+      object-fit: cover;
+      display: block;
+    }
+
+    .cover-overlay {
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+      display: flex;
+      gap: 0.5rem;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+
+    .cover-container:hover .cover-overlay {
+      opacity: 1;
+    }
+
+    .btn-cover-action {
+      padding: 0.5rem 1rem;
+      background: rgba(0,0,0,0.7);
+      color: white;
+      border: none;
+      border-radius: var(--radius);
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .btn-cover-action:hover {
+      background: rgba(0,0,0,0.9);
+    }
+
+    .cover-upload-area {
+      height: 200px;
+      border: 2px dashed var(--border-medium);
+      border-radius: var(--radius);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: var(--background-secondary);
+    }
+
+    .cover-upload-area:hover {
+      border-color: var(--primary);
+      background: rgba(26, 137, 23, 0.05);
+    }
+
+    .upload-content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.5rem;
+      color: var(--text-secondary);
+    }
+
+    .upload-content svg {
+      width: 32px;
+      height: 32px;
+    }
+
+    .add-cover-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.75rem 1rem;
+      border: 1px solid var(--border-medium);
+      background: var(--background);
+      border-radius: var(--radius);
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+      cursor: pointer;
+      margin-bottom: 2rem;
+      transition: all 0.2s;
+    }
+
+    .add-cover-btn:hover {
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+
+    /* Title */
+    .title-container {
+      margin-bottom: 1rem;
+    }
+
+    .title-input {
+      width: 100%;
+      font-family: var(--font-serif);
+      font-size: 2.5rem;
+      font-weight: 700;
+      line-height: 1.2;
+      color: var(--text-primary);
+      border: none;
+      outline: none;
+      background: transparent;
+      resize: none;
+      overflow: hidden;
+    }
+
+    .title-input::placeholder {
+      color: var(--text-muted);
+    }
+
+    /* Subtitle */
+    .subtitle-container {
+      margin-bottom: 2rem;
+    }
+
+    .subtitle-input {
+      width: 100%;
+      font-family: var(--font-serif);
+      font-size: 1.4rem;
+      font-weight: 400;
+      line-height: 1.4;
+      color: var(--text-secondary);
+      border: none;
+      outline: none;
+      background: transparent;
+      resize: none;
+      overflow: hidden;
+    }
+
+    .subtitle-input::placeholder {
+      color: var(--text-muted);
+    }
+
+    /* Editor Toolbar */
+    .editor-toolbar {
+      position: fixed;
+      display: flex;
+      align-items: center;
+      background: var(--text-primary);
+      border-radius: 6px;
+      padding: 0.5rem;
+      box-shadow: var(--shadow-heavy);
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.2s;
+      z-index: 1000;
+      pointer-events: none;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    .editor-toolbar.visible {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+    }
+
+    .toolbar-group {
+      display: flex;
+    }
+
+    .toolbar-divider {
+      width: 1px;
+      height: 24px;
+      background: rgba(255,255,255,0.2);
+      margin: 0 0.5rem;
+    }
+
+    .editor-toolbar button {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      border: none;
+      background: none;
+      color: white;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background 0.2s;
+      position: relative;
+    }
+
+    .editor-toolbar button:hover,
+    .editor-toolbar button.active {
+      background: rgba(255,255,255,0.2);
+    }
+
+    /* Content Editor */
+    .content-editor {
+      font-family: var(--font-serif);
+      font-size: 1.25rem;
+      line-height: 1.6;
+      color: var(--text-primary);
+      min-height: 300px;
+      padding: 1rem 0;
+      outline: none;
+      position: relative;
+    }
+
+    .content-editor:empty::before {
+      content: '';
+      position: absolute;
+      top: 1rem;
+      left: 0;
+      right: 0;
+      pointer-events: none;
+    }
+
+    .editor-placeholder {
+      position: absolute;
+      top: 1rem;
+      left: 0;
+      font-family: var(--font-serif);
+      font-size: 1.25rem;
+      color: var(--text-muted);
+      pointer-events: none;
+      font-style: italic;
+    }
+
+    .content-editor h1, .content-editor h2 {
+      font-weight: 700;
+      margin: 2rem 0 1rem 0;
+      line-height: 1.2;
+    }
+
+    .content-editor h1 {
+      font-size: 2rem;
+    }
+
+    .content-editor h2 {
+      font-size: 1.6rem;
+    }
+
+    .content-editor p {
+      margin-bottom: 1rem;
+    }
+
+    .content-editor ul, .content-editor ol {
+      margin-bottom: 1rem;
+      padding-left: 2rem;
+    }
+
+    .content-editor li {
+      margin-bottom: 0.5rem;
+    }
+
+    .content-editor.rtl {
+      direction: rtl;
+      text-align: right;
+    }
+
+    /* Writing Stats */
+    .writing-stats {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-top: 2rem;
+      padding-top: 2rem;
+      border-top: 1px solid var(--border-light);
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+    }
+
+    .stat-divider {
+      color: var(--text-muted);
+    }
+
+    /* Buttons */
+    .btn-primary {
+      background: var(--primary);
+      color: white;
+      border: none;
+      padding: 0.75rem 1.5rem;
+      border-radius: var(--radius);
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+      text-decoration: none;
+      display: inline-block;
+      text-align: center;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      background: var(--primary-hover);
+    }
+
+    .btn-outline {
+      background: transparent;
+      color: var(--primary);
+      border: 1px solid var(--primary);
+      padding: 0.75rem 1.5rem;
+      border-radius: var(--radius);
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-decoration: none;
+      display: inline-block;
+      text-align: center;
+    }
+
+    .btn-outline:hover:not(:disabled) {
+      background: var(--primary);
+      color: white;
+    }
+
+    .btn-ghost {
+      background: none;
+      color: var(--text-secondary);
+      border: none;
+      padding: 0.75rem 1rem;
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: all 0.2s;
+      font-weight: 500;
+    }
+
+    .btn-ghost:hover:not(:disabled) {
+      background: var(--background-secondary);
+      color: var(--text-primary);
+    }
+
+    .btn-ghost.saving {
+      color: var(--primary);
+    }
+
+    .btn-publish {
+      background: var(--primary);
+      color: white;
+      border: none;
+      padding: 0.75rem 1.5rem;
+      border-radius: 24px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .btn-publish:hover:not(:disabled) {
+      background: var(--primary-hover);
+    }
+
+    .btn-primary:disabled,
+    .btn-outline:disabled,
+    .btn-ghost:disabled,
+    .btn-publish:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 2000;
+      padding: 2rem;
+    }
+
+    .publish-modal {
+      background: white;
+      border-radius: 12px;
+      box-shadow: var(--shadow-heavy);
+      max-width: 600px;
+      width: 100%;
+      max-height: 90vh;
+      overflow-y: auto;
+      animation: modalSlideUp 0.3s ease-out;
+    }
+
+    @keyframes modalSlideUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1.5rem 2rem;
+      border-bottom: 1px solid var(--border-light);
+    }
+
+    .modal-header h2 {
+      margin: 0;
+      font-size: 1.5rem;
+      font-weight: 600;
+    }
+
+    .modal-close {
+      border: none;
+      background: none;
+      font-size: 1.5rem;
+      cursor: pointer;
+      color: var(--text-secondary);
+      padding: 0;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s;
+    }
+
+    .modal-close:hover {
+      background: var(--background-secondary);
+    }
+
+    .modal-content {
+      padding: 2rem;
+    }
+
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 1rem;
+      padding: 1.5rem 2rem;
+      border-top: 1px solid var(--border-light);
+    }
+
+    /* Story Preview */
+    .story-preview {
+      margin-bottom: 2rem;
+      padding: 1.5rem;
+      background: var(--background-secondary);
+      border-radius: var(--radius);
+    }
+
+    .preview-cover {
+      margin-bottom: 1rem;
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+
+    .preview-cover img {
+      width: 100%;
+      height: 200px;
+      object-fit: cover;
+    }
+
+    .preview-title {
+      font-size: 1.8rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+      color: var(--text-primary);
+    }
+
+    .preview-subtitle {
+      font-size: 1.1rem;
+      color: var(--text-secondary);
+      margin-bottom: 1rem;
+    }
+
+    .preview-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+    }
+
+    .author-info {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .author-avatar {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      object-fit: cover;
+    }
+
+    /* Publishing Options */
+    .publish-options {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .form-group label {
+      font-weight: 600;
+      color: var(--text-primary);
+      font-size: 0.9rem;
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+
+    .select-input {
+      padding: 0.75rem;
+      border: 1px solid var(--border-medium);
+      border-radius: var(--radius);
+      background: white;
+      font-size: 1rem;
+      outline: none;
+      transition: border-color 0.2s;
+      appearance: none;
+      background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6,9 12,15 18,9'%3e%3c/polyline%3e%3c/svg%3e");
+      background-repeat: no-repeat;
+      background-position: right 0.75rem center;
+      background-size: 16px;
+      padding-right: 2.5rem;
+    }
+
+    .select-input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(26, 137, 23, 0.1);
+    }
+
+    .emoji-container {
+      position: relative;
+    }
+
+    .emoji-input {
+      padding: 0.75rem;
+      border: 1px solid var(--border-medium);
+      border-radius: var(--radius);
+      background: white;
+      font-size: 1.5rem;
+      text-align: center;
+      outline: none;
+      transition: border-color 0.2s;
+      width: 100%;
+    }
+
+    .emoji-input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(26, 137, 23, 0.1);
+    }
+
+    .emoji-suggestions {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      background: white;
+      border: 1px solid var(--border-medium);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-medium);
+      max-height: 200px;
+      overflow-y: auto;
+      z-index: 10;
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 0.25rem;
+      padding: 0.5rem;
+      margin-top: 0.25rem;
+    }
+
+    .emoji-option {
+      border: none;
+      background: none;
+      font-size: 1.2rem;
+      padding: 0.5rem;
+      cursor: pointer;
+      border-radius: 4px;
+      transition: background 0.2s;
+      aspect-ratio: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .emoji-option:hover {
+      background: var(--background-secondary);
+    }
+
+    /* Tags */
+    .tags-section {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .selected-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    .tag-chip {
+      display: inline-flex;
+      align-items: center;
+      background: var(--background-secondary);
+      color: var(--text-primary);
+      padding: 0.375rem 0.75rem;
+      border-radius: 16px;
+      font-size: 0.85rem;
+      gap: 0.375rem;
+      border: 1px solid var(--border-light);
+    }
+
+    .tag-remove {
+      border: none;
+      background: none;
+      color: var(--text-secondary);
+      cursor: pointer;
+      font-size: 1rem;
+      padding: 0;
+      line-height: 1;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+
+    .tag-remove:hover {
+      background: var(--border-medium);
+      color: var(--text-primary);
+    }
+
+    .tags-input {
+      padding: 0.75rem;
+      border: 1px solid var(--border-medium);
+      border-radius: var(--radius);
+      background: white;
+      font-size: 1rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .tags-input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(26, 137, 23, 0.1);
+    }
+
+    /* Toast Messages */
+    .toast {
+      position: fixed;
+      bottom: 2rem;
+      right: 2rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 1rem 1.5rem;
+      border-radius: var(--radius);
+      font-weight: 500;
+      box-shadow: var(--shadow-medium);
+      transform: translateX(400px);
+      transition: transform 0.3s ease-out;
+      z-index: 3000;
+      max-width: 400px;
+    }
+
+    .toast.visible {
+      transform: translateX(0);
+    }
+
+    .error-toast {
+      background: #fef2f2;
+      color: #dc2626;
+      border: 1px solid #fecaca;
+    }
+
+    .success-toast {
+      background: #f0fdf4;
+      color: #16a34a;
+      border: 1px solid #bbf7d0;
+    }
+
     /* Responsive */
     @media (max-width: 768px) {
-      .write-story-container {
-        padding: 1rem;
+      .top-bar {
+        padding: 0.75rem 1rem;
       }
 
-      .form-row {
-        grid-template-columns: 1fr;
+      .main-content {
+        padding: 1rem;
       }
 
       .title-input {
@@ -687,74 +1250,85 @@ import { DraftsService } from './services/draft.service';
       }
 
       .subtitle-input {
-        font-size: 1.1rem;
+        font-size: 1.2rem;
       }
 
-      .writing-assistant {
-        position: static;
-        width: 100%;
-        margin-top: 1rem;
+      .content-editor {
+        font-size: 1.125rem;
       }
 
-      .form-actions {
-        flex-direction: column;
+      .modal-overlay {
+        padding: 1rem;
+      }
+
+      .modal-content,
+      .modal-header,
+      .modal-actions {
+        padding-left: 1rem;
+        padding-right: 1rem;
+      }
+
+      .form-row {
+        grid-template-columns: 1fr;
+      }
+
+      .cover-image {
+        height: 200px;
+      }
+
+      .toast {
+        bottom: 1rem;
+        right: 1rem;
+        left: 1rem;
+        max-width: none;
       }
     }
 
     @media (max-width: 480px) {
-      .header {
-        flex-direction: column;
-        gap: 1rem;
-        text-align: center;
+      .top-bar-left .logo-text {
+        display: none;
       }
 
       .title-input {
-        font-size: 1.8rem;
+        font-size: 1.75rem;
+      }
+
+      .content-editor {
+        font-size: 1rem;
+      }
+
+      .editor-toolbar {
+        position: sticky;
+        top: 80px;
+        left: 50%;
+        transform: translateX(-50%);
+        margin: 1rem 0;
+        opacity: 1;
+        visibility: visible;
+        pointer-events: auto;
+        background: var(--background-secondary);
+        box-shadow: var(--shadow-light);
+        border: 1px solid var(--border-light);
+      }
+
+      .editor-toolbar button {
+        color: var(--text-primary);
+      }
+
+      .editor-toolbar button:hover,
+      .editor-toolbar button.active {
+        background: var(--border-light);
+      }
+
+      .toolbar-divider {
+        background: var(--border-medium);
       }
     }
-
-    .emoji-container {
-  position: relative;
-}
-
-.emoji-suggestions {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
-  background: white;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-  max-height: 200px;
-  overflow-y: auto;
-  z-index: 10;
-  display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  gap: 0.25rem;
-  padding: 0.5rem;
-}
-
-.emoji-option {
-  border: none;
-  background: none;
-  font-size: 1.2rem;
-  padding: 0.5rem;
-  cursor: pointer;
-  border-radius: 4px;
-  transition: background 0.2s;
-  aspect-ratio: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.emoji-option:hover {
-  background: var(--border);
-}
   `]
 })
 export class WriteStoryComponent implements OnInit, OnDestroy {
+  @ViewChild('contentEditor') contentEditor!: ElementRef;
+  
   private storiesService = inject(StoriesService);
   private draftsService = inject(DraftsService);
   private authService = inject(AuthService);
@@ -767,24 +1341,23 @@ export class WriteStoryComponent implements OnInit, OnDestroy {
   successMessage = '';
   errorMessage = '';
   tagsInput = '';
-  showWritingAssistant = false;
   selectedTags: string[] = [];
-
+  showPublishModal = false;
+  showCoverOptions = false;
+  showToolbar = false;
   showEmojiSuggestions = false;
-emojiSuggestions = [
-  '📝', '✍️', '📖', '💭', '🌟', '❤️', '🔥', '💡',
-  '🎯', '🚀', '🌈', '✨', '💪', '🙏', '😊', '🎉',
-  '🌍', '🏔️', '🌊', '🎨', '🎵', '📚', '⭐', '💫'
-];
+  isDraftSaved = false;
+  isRTL = false;
 
-  // Content suggestions
-  writingSuggestions = [
-    "Start with a moment that changed everything",
-    "Show, don't just tell - use specific details",
-    "What would you tell your younger self?",
-    "Focus on one powerful moment rather than a timeline",
-    "What lesson did this experience teach you?",
-    "How did this make you feel, and why?"
+  // Editor properties
+  private selectionRange: Range | null = null;
+  private toolbarTimeout?: number;
+
+  // Emoji suggestions
+  emojiSuggestions = [
+    '📝', '✍️', '📖', '💭', '🌟', '❤️', '🔥', '💡',
+    '🎯', '🚀', '🌈', '✨', '💪', '🙏', '😊', '🎉',
+    '🌍', '🏔️', '🌊', '🎨', '🎵', '📚', '⭐', '💫'
   ];
 
   // Categories and languages
@@ -821,20 +1394,14 @@ emojiSuggestions = [
     title: '',
     content: '',
     excerpt: '',
+    featuredImage: '',
     status: 'published' as StoryStatus,
     isPublic: true,
     tags: []
   };
 
-
-  isRTL = false; // Add this property
-
-// Add method to toggle direction
-toggleDirection() {
-  this.isRTL = !this.isRTL;
-}
-
   private userSubscription?: Subscription;
+  private autoSaveInterval?: number;
 
   ngOnInit() {
     this.userSubscription = this.authService.user$.subscribe(user => {
@@ -847,24 +1414,121 @@ toggleDirection() {
       }
     });
 
-    const saved = localStorage.getItem('draft');
-    if (saved) this.formData = JSON.parse(saved);
-
-    // Auto-save setup
+    this.loadDraft();
     this.setupAutoSave();
     this.setupKeyboardShortcuts();
+    this.initializeEditor();
   }
 
   ngOnDestroy() {
     if (this.userSubscription) {
       this.userSubscription.unsubscribe();
     }
+    if (this.autoSaveInterval) {
+      clearInterval(this.autoSaveInterval);
+    }
+    if (this.toolbarTimeout) {
+      clearTimeout(this.toolbarTimeout);
+    }
+    
+    // Clean up selection change listener
+    document.removeEventListener('selectionchange', this.handleSelectionChange.bind(this));
+    this.clearMessages();
+  }
+
+  // Editor initialization
+  private initializeEditor() {
+    setTimeout(() => {
+      if (this.contentEditor?.nativeElement) {
+        const editor = this.contentEditor.nativeElement;
+        
+        // Set initial content if exists
+        if (this.formData.content) {
+          editor.innerHTML = this.formData.content;
+        }
+        
+        // Configure contenteditable behavior
+        editor.setAttribute('spellcheck', 'true');
+        editor.setAttribute('autocomplete', 'off');
+        editor.setAttribute('autocorrect', 'on');
+        editor.setAttribute('autocapitalize', 'sentences');
+        
+        // Prevent certain formatting commands that might break the editor
+        editor.addEventListener('keydown', (e: KeyboardEvent) => {
+          // Prevent tab key from losing focus
+          if (e.key === 'Tab') {
+            e.preventDefault();
+            document.execCommand('insertText', false, '    '); // Insert 4 spaces instead
+          }
+          
+          // Handle Enter key for better paragraph formatting
+          if (e.key === 'Enter' && !e.shiftKey) {
+            // Let the default behavior handle this, but clean up afterward
+            setTimeout(() => {
+              this.cleanupEditorContent();
+            }, 0);
+          }
+        });
+      }
+    }, 100);
+  }
+
+  private cleanupEditorContent() {
+    if (!this.contentEditor?.nativeElement) return;
+    
+    const editor = this.contentEditor.nativeElement;
+    let content = editor.innerHTML;
+    
+    // Clean up common contenteditable issues
+    content = content
+      .replace(/<div><br><\/div>/g, '<p><br></p>') // Convert empty divs to paragraphs
+      .replace(/<div>/g, '<p>') // Convert divs to paragraphs
+      .replace(/<\/div>/g, '</p>')
+      .replace(/<p><\/p>/g, '<p><br></p>') // Add br to empty paragraphs
+      .replace(/&nbsp;/g, ' ') // Convert non-breaking spaces
+      .trim();
+    
+    if (content !== editor.innerHTML) {
+      // Save cursor position
+      const selection = window.getSelection();
+      const range = selection?.rangeCount ? selection.getRangeAt(0) : null;
+      const cursorPosition = range ? range.startOffset : 0;
+      
+      // Update content
+      editor.innerHTML = content;
+      
+      // Restore cursor position (simplified)
+      if (range && editor.firstChild) {
+        try {
+          const newRange = document.createRange();
+          newRange.setStart(editor.firstChild, Math.min(cursorPosition, editor.firstChild.textContent?.length || 0));
+          newRange.collapse(true);
+          selection?.removeAllRanges();
+          selection?.addRange(newRange);
+        } catch (error) {
+          // If cursor restoration fails, just focus the editor
+          editor.focus();
+        }
+      }
+      
+      this.formData.content = content;
+    }
+  }
+
+  // Navigation
+  navigateHome() {
+    this.router.navigate(['/']);
   }
 
   // User methods
   getUserName(): string {
     if (!this.currentUser) return '';
     return this.currentUser.displayName || this.currentUser.email?.split('@')[0] || 'Writer';
+  }
+
+  getUserAvatar(): string {
+    if (!this.currentUser) return '/assets/default-avatar.png';
+    return this.currentUser.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(this.getUserName())}&background=1a8917&color=fff`;
   }
 
   // Content analysis
@@ -885,46 +1549,282 @@ toggleDirection() {
     return !!(this.formData.title && this.formData.content && this.formData.content.length >= 10);
   }
 
+  isValidForPublish(): boolean {
+    return !!(
+      this.formData.title &&
+      this.formData.content &&
+      this.formData.category &&
+      this.formData.language &&
+      this.formData.emoji
+    );
+  }
+
+  // Cover image handling
+  onCoverImageSelected(event: any) {
+    const file = event.target.files[0];
+    if (file) {
+      // In a real app, you'd upload to a service like Firebase Storage
+      // For now, we'll use FileReader for preview
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        this.formData.featuredImage = e.target?.result as string;
+      };
+      reader.readAsDataURL(file);
+    }
+  }
+
+  removeCover() {
+    this.formData.featuredImage = '';
+    this.showCoverOptions = false;
+  }
+
+  changeCover() {
+    // Trigger file input
+    const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+    fileInput?.click();
+  }
+
   // Editor functionality
+  adjustTextareaHeight(textarea: HTMLTextAreaElement) {
+    textarea.style.height = 'auto';
+    textarea.style.height = textarea.scrollHeight + 'px';
+  }
+
+  onContentInput(event: any) {
+    const element = event.target;
+    const content = element.innerHTML;
+    
+    // Auto-detect RTL text
+    const textContent = element.textContent || '';
+    const rtlRegex = /[\u0590-\u05FF\u0600-\u06FF\u0750-\u077F]/;
+    const hasRTL = rtlRegex.test(textContent);
+    
+    if (hasRTL !== this.isRTL) {
+      this.isRTL = hasRTL;
+    }
+    
+    // Update content without triggering innerHTML binding
+    if (this.formData.content !== content) {
+      this.formData.content = content;
+    }
+  }
+
+  onEditorFocus() {
+    // Setup selection tracking
+    document.addEventListener('selectionchange', this.handleSelectionChange.bind(this));
+  }
+
+  onEditorBlur() {
+    // Clean up selection tracking
+    document.removeEventListener('selectionchange', this.handleSelectionChange.bind(this));
+    this.hideToolbarDelayed();
+  }
+
+  private handleSelectionChange() {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) {
+      this.hideToolbarDelayed();
+      return;
+    }
+
+    const range = selection.getRangeAt(0);
+    const editorElement = this.contentEditor?.nativeElement;
+    
+    // Check if selection is within our editor
+    if (!editorElement || !editorElement.contains(range.commonAncestorContainer)) {
+      this.hideToolbarDelayed();
+      return;
+    }
+
+    if (!selection.isCollapsed && range.toString().trim().length > 0) {
+      this.selectionRange = range.cloneRange();
+      this.showToolbarAtSelection();
+    } else {
+      this.hideToolbarDelayed();
+    }
+  }
+
+  private showToolbarAtSelection() {
+    if (this.toolbarTimeout) {
+      clearTimeout(this.toolbarTimeout);
+    }
+    
+    this.showToolbar = true;
+    this.updateToolbarPosition();
+  }
+
+  private hideToolbarDelayed() {
+    if (this.toolbarTimeout) {
+      clearTimeout(this.toolbarTimeout);
+    }
+    
+    this.toolbarTimeout = window.setTimeout(() => {
+      this.showToolbar = false;
+      this.selectionRange = null;
+    }, 150);
+  }
+
+  private updateToolbarPosition() {
+    if (!this.selectionRange) return;
+    
+    // Get the bounding rect of the selection
+    const rect = this.selectionRange.getBoundingClientRect();
+    const toolbar = document.querySelector('.editor-toolbar') as HTMLElement;
+    
+    if (toolbar) {
+      const toolbarRect = toolbar.getBoundingClientRect();
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+      
+      // Calculate position above the selection
+      let top = rect.top - toolbarRect.height - 10;
+      let left = rect.left + (rect.width / 2) - (toolbarRect.width / 2);
+      
+      // Adjust if toolbar would go off screen
+      if (left < 10) left = 10;
+      if (left + toolbarRect.width > viewportWidth - 10) {
+        left = viewportWidth - toolbarRect.width - 10;
+      }
+      if (top < 10) {
+        top = rect.bottom + 10; // Show below if no room above
+      }
+      
+      toolbar.style.position = 'fixed';
+      toolbar.style.top = `${top}px`;
+      toolbar.style.left = `${left}px`;
+      toolbar.style.transform = 'none';
+    }
+  }
+
   formatText(command: string, value?: string) {
-    document.execCommand(command, false, value);
+    // Restore selection before formatting
+    if (this.selectionRange) {
+      const selection = window.getSelection();
+      if (selection) {
+        selection.removeAllRanges();
+        selection.addRange(this.selectionRange);
+      }
+    }
+    
+    // Apply formatting
+    const success = document.execCommand(command, false, value);
+    
+    if (success) {
+      // Update content and maintain focus
+      this.updateContentFromEditor();
+      
+      // Update selection range
+      const selection = window.getSelection();
+      if (selection && selection.rangeCount > 0) {
+        this.selectionRange = selection.getRangeAt(0);
+      }
+    }
+    
+    // Keep focus on editor
+    this.contentEditor?.nativeElement.focus();
   }
 
-  onContentChange(event: any) {
-    this.formData.content = event.target.innerHTML;
+  insertLink() {
+    const url = prompt('Enter URL:');
+    if (url && url.trim()) {
+      this.formatText('createLink', url);
+    }
   }
 
-  onContentBlur(event: any) {
-    this.formData.content = event.target.innerHTML;
+  isFormatActive(command: string): boolean {
+    try {
+      return document.queryCommandState(command);
+    } catch (error) {
+      // Fallback for commands that might not be supported
+      return false;
+    }
   }
 
-  toggleWritingAssistant() {
-    this.showWritingAssistant = !this.showWritingAssistant;
+  private updateContentFromEditor() {
+    if (this.contentEditor?.nativeElement) {
+      const content = this.contentEditor.nativeElement.innerHTML;
+      this.formData.content = content;
+    }
+  }
+
+  onEditorKeyup(event: KeyboardEvent) {
+    this.updateContentFromEditor();
+    
+    // Handle special keys
+    if (event.key === 'Escape') {
+      this.showToolbar = false;
+    }
+  }
+
+  onEditorPaste(event: ClipboardEvent) {
+    event.preventDefault();
+    
+    const paste = event.clipboardData?.getData('text/plain') || '';
+    if (paste) {
+      // Insert as plain text to avoid style conflicts
+      document.execCommand('insertText', false, paste);
+      this.updateContentFromEditor();
+    }
+  }
+
+  // Tags
+  addTag(event: Event) {
+    event.preventDefault();
+    const tag = this.tagsInput.trim();
+    if (tag && !this.selectedTags.includes(tag) && this.selectedTags.length < 5) {
+      this.selectedTags.push(tag);
+      this.tagsInput = '';
+    }
+  }
+
+  removeTag(tagToRemove: string) {
+    this.selectedTags = this.selectedTags.filter(tag => tag !== tagToRemove);
+  }
+
+  // Emoji
+  selectEmoji(emoji: string) {
+    this.formData.emoji = emoji;
+    this.showEmojiSuggestions = false;
+  }
+
+  hideEmojiSuggestions() {
+    setTimeout(() => {
+      this.showEmojiSuggestions = false;
+    }, 150);
+  }
+
+  // Modal
+  openPublishModal() {
+    if (!this.canSave()) return;
+    this.showPublishModal = true;
+    document.body.style.overflow = 'hidden';
+  }
+
+  closePublishModal() {
+    this.showPublishModal = false;
+    document.body.style.overflow = '';
   }
 
   // Submission methods
   async submitStory() {
-    if (!this.currentUser || this.isSubmitting) return;
+    if (!this.currentUser || this.isSubmitting || !this.isValidForPublish()) return;
 
     this.isSubmitting = true;
-    this.errorMessage = '';
-    this.successMessage = '';
+    this.clearMessages();
     this.formData.status = 'published';
 
     try {
-      const tags = this.selectedTags;
-
-
       const storyData: CreateStoryData = {
         ...this.formData as CreateStoryData,
-        tags,
+        tags: this.selectedTags,
         readTime: this.getReadTime(),
         status: 'published' as StoryStatus,
       };
 
       const result = await this.storiesService.createStory(storyData);
       
-      this.successMessage = 'Story published successfully!';
+      this.showSuccess('Story published successfully!');
+      this.closePublishModal();
       
       setTimeout(() => {
         this.router.navigate(['/story', result.id]);
@@ -932,60 +1832,74 @@ toggleDirection() {
 
     } catch (error) {
       console.error('Error publishing story:', error);
-      this.errorMessage = 'Failed to publish story. Please try again.';
+      this.showError('Failed to publish story. Please try again.');
     } finally {
       this.isSubmitting = false;
     }
   }
 
   async saveDraft() {
-  if (!this.currentUser || this.isSubmitting) return;
+    if (!this.currentUser || this.isSubmitting || !this.canSave()) return;
 
-  this.isSubmitting = true;
-  this.errorMessage = '';
-  this.formData.status = 'draft';
+    this.isSubmitting = true;
+    this.clearMessages();
+    this.formData.status = 'draft';
 
-  try {
-    const tags = this.tagsInput
-      .split(',')
-      .map(tag => tag.trim())
-      .filter(tag => tag.length > 0)
-      .slice(0, 10);
+    try {
+      const draftData: CreateDraftData = {
+        ...this.formData as CreateDraftData,
+        tags: this.selectedTags,
+        readTime: this.getReadTime(),
+        authorId: this.currentUser.uid,
+        authorName: this.currentUser.displayName || 'Anonymous',
+        isPublic: false,
+        language: this.formData.language || 'en',
+      };
 
-    const draftData: CreateDraftData = {
-      ...this.formData as CreateDraftData,
-      tags,
-      readTime: this.getReadTime(),
-      authorId: this.currentUser.uid,
-      authorName: this.currentUser.displayName || 'Anonymous',
-      isPublic: false, // Drafts should usually not be public
-      language: this.formData.language || 'en',
-    };
+      await this.draftsService.createDraft(draftData);
+      
+      this.isDraftSaved = true;
+      this.saveDraftToLocal();
+      
+      setTimeout(() => {
+        this.isDraftSaved = false;
+      }, 3000);
 
-    await this.draftsService.createDraft(draftData);
-
-    this.successMessage = 'Draft saved successfully!';
-
-    setTimeout(() => {
-      this.successMessage = '';
-    }, 3000);
-
-  } catch (error) {
-    console.error('Error saving draft:', error);
-    this.errorMessage = 'Failed to save draft. Please try again.';
-  } finally {
-    this.isSubmitting = false;
+    } catch (error) {
+      console.error('Error saving draft:', error);
+      this.showError('Failed to save draft. Please try again.');
+    } finally {
+      this.isSubmitting = false;
+    }
   }
-}
 
+  // Local storage
+  private loadDraft() {
+    const saved = localStorage.getItem('story-draft');
+    if (saved) {
+      try {
+        const draft = JSON.parse(saved);
+        this.formData = { ...this.formData, ...draft };
+        this.selectedTags = draft.tags || [];
+      } catch (error) {
+        console.error('Error loading draft:', error);
+      }
+    }
+  }
 
-  // Auto-save functionality
+  private saveDraftToLocal() {
+    const draftData = {
+      ...this.formData,
+      tags: this.selectedTags
+    };
+    localStorage.setItem('story-draft', JSON.stringify(draftData));
+  }
+
+  // Auto-save
   private setupAutoSave() {
-    setInterval(() => {
+    this.autoSaveInterval = window.setInterval(() => {
       if (this.canSave() && !this.isSubmitting) {
-        // Auto-save logic here if needed
-            localStorage.setItem('draft', JSON.stringify(this.formData));
-
+        this.saveDraftToLocal();
       }
     }, 30000);
   }
@@ -1001,49 +1915,34 @@ toggleDirection() {
               this.saveDraft();
             }
             break;
+          case 'Enter':
+            event.preventDefault();
+            if (this.canSave()) {
+              this.openPublishModal();
+            }
+            break;
         }
       }
     });
   }
-addTag(event: Event) {
-  event.preventDefault();
-  const tag = this.tagsInput.trim();
-  if (tag && !this.selectedTags.includes(tag) && this.selectedTags.length < 10) {
-    this.selectedTags.push(tag);
-    this.tagsInput = '';
+
+  // Message handling
+  private showSuccess(message: string) {
+    this.successMessage = message;
+    setTimeout(() => {
+      this.successMessage = '';
+    }, 5000);
   }
-}
 
-removeTag(tagToRemove: string) {
-  this.selectedTags = this.selectedTags.filter(tag => tag !== tagToRemove);
-}
-
-  selectEmoji(emoji: string) {
-  this.formData.emoji = emoji;
-  this.showEmojiSuggestions = false;
-}
-
-hideEmojiSuggestions() {
-  // Delay to allow click events to fire
-  setTimeout(() => {
-    this.showEmojiSuggestions = false;
-  }, 150);
-}
-
-
-
-onContentInput(event: any) {
-  const element = event.target;
-  const text = element.textContent || '';
-  
-  // Auto-detect RTL text (Arabic, Hebrew, etc.)
-  const rtlRegex = /[\u0590-\u05FF\u0600-\u06FF\u0750-\u077F]/;
-  const hasRTL = rtlRegex.test(text);
-  
-  if (hasRTL && !this.isRTL) {
-    this.isRTL = true;
+  private showError(message: string) {
+    this.errorMessage = message;
+    setTimeout(() => {
+      this.errorMessage = '';
+    }, 5000);
   }
-  
-  this.onContentChange(event);
-}
+
+  private clearMessages() {
+    this.successMessage = '';
+    this.errorMessage = '';
+  }
 }

@@ -721,16 +721,21 @@ import { Bookmark, CreateBookmarkData } from '../models/bookmark';
     }
 
     /* Category Colors */
-    .category-badge[data-category="Personal Experience"] { background: #fef3c7; color: #92400e; }
-    .category-badge[data-category="Cultural Stories"] { background: #fce7f3; color: #be185d; }
-    .category-badge[data-category="Travel & Adventure"] { background: #dbeafe; color: #1e40af; }
-    .category-badge[data-category="Work & Career"] { background: #f3e8ff; color: #7c3aed; }
-    .category-badge[data-category="Social Issues"] { background: #ffe4e6; color: #e11d48; }
-    .category-badge[data-category="Education & Learning"] { background: #d1fae5; color: #059669; }
-    .category-badge[data-category="Relationships"] { background: #e0f2fe; color: #0369a1; }
-    .category-badge[data-category="Health & Wellness"] { background: #fed7aa; color: #ea580c; }
-    .category-badge[data-category="Creative Expression"] { background: #ccfbf1; color: #0f766e; }
-    .category-badge[data-category="Other"] { background: #ecfdf5; color: #047857; }
+    .category-badge[data-category="Personal Growth"] { color: #fef3c7; background: #92400e; }
+.category-badge[data-category="Life Lessons"] { color: #fce7f3; background: #9d174d; }
+.category-badge[data-category="Cultural Heritage"] { color: #e0f2fe; background: #0369a1; }
+.category-badge[data-category="Travel & Adventure"] { color: #dbeafe; background: #1e40af; }
+.category-badge[data-category="Work & Career"] { color: #f3e8ff; background: #6d28d9; }
+.category-badge[data-category="Relationships"] { color: #ffe4e6; background: #be123c; }
+.category-badge[data-category="Family Stories"] { color: #dcfce7; background: #166534; }
+.category-badge[data-category="Overcoming Challenges"] { color: #fee2e2; background: #b91c1c; }
+.category-badge[data-category="Creative Journey"] { color: #ccfbf1; background: #0f766e; }
+.category-badge[data-category="Social Impact"] { color: #ede9fe; background: #5b21b6; }
+.category-badge[data-category="Health & Wellness"] { color: #fef9c3; background: #854d0e; }
+.category-badge[data-category="Education & Learning"] { color: #d1fae5; background: #047857; }
+.category-badge[data-category="Dreams & Aspirations"] { color: #fdf2f8; background: #9d174d; }
+.category-badge[data-category="Unexpected Moments"] { color: #e0f7fa; background: #00695c; }
+.category-badge[data-category="Other"] { color: #f5f5f5; background: #374151; }
 
     /* Story Actions */
     .story-actions {
@@ -1115,17 +1120,22 @@ import { Bookmark, CreateBookmarkData } from '../models/bookmark';
         background: rgba(26, 25, 23, 0.95);
       }
 
-      .category-badge[data-category="Personal"] { background: #451a03; color: #fbbf24; }
-      .category-badge[data-category="Culture"] { background: #831843; color: #f9a8d4; }
-      .category-badge[data-category="Politics"] { background: #1e3a8a; color: #93c5fd; }
-      .category-badge[data-category="Religion"] { background: #581c87; color: #c4b5fd; }
-      .category-badge[data-category="Love"] { background: #9f1239; color: #fda4af; }
-      .category-badge[data-category="Family"] { background: #064e3b; color: #6ee7b7; }
-      .category-badge[data-category="Work"] { background: #0c4a6e; color: #7dd3fc; }
-      .category-badge[data-category="Travel"] { background: #9a3412; color: #fdba74; }
-      .category-badge[data-category="Education"] { background: #134e4a; color: #5eead4; }
-      .category-badge[data-category="Health"] { background: #064e3b; color: #6ee7b7; }
-      .category-badge[data-category="Society"] { background: #581c87; color: #c4b5fd; }
+      .category-badge[data-category="Personal Growth"] { background: #fef3c7; color: #92400e; }
+.category-badge[data-category="Life Lessons"] { background: #fce7f3; color: #9d174d; }
+.category-badge[data-category="Cultural Heritage"] { background: #e0f2fe; color: #0369a1; }
+.category-badge[data-category="Travel & Adventure"] { background: #dbeafe; color: #1e40af; }
+.category-badge[data-category="Work & Career"] { background: #f3e8ff; color: #6d28d9; }
+.category-badge[data-category="Relationships"] { background: #ffe4e6; color: #be123c; }
+.category-badge[data-category="Family Stories"] { background: #dcfce7; color: #166534; }
+.category-badge[data-category="Overcoming Challenges"] { background: #fee2e2; color: #b91c1c; }
+.category-badge[data-category="Creative Journey"] { background: #ccfbf1; color: #0f766e; }
+.category-badge[data-category="Social Impact"] { background: #ede9fe; color: #5b21b6; }
+.category-badge[data-category="Health & Wellness"] { background: #fef9c3; color: #854d0e; }
+.category-badge[data-category="Education & Learning"] { background: #d1fae5; color: #047857; }
+.category-badge[data-category="Dreams & Aspirations"] { background: #fdf2f8; color: #9d174d; }
+.category-badge[data-category="Unexpected Moments"] { background: #e0f7fa; color: #00695c; }
+.category-badge[data-category="Other"] { background: #f5f5f5; color: #374151; }
+
     }
 
     /* Accessibility improvements */
@@ -1249,7 +1259,8 @@ export class StoriesComponent implements OnInit {
       }
   
       // Fetch stories
-      const loadedStories = await this.storiesService.getStories(50);
+      const loadedStories = await this.storiesService.getStories(20);
+      console.log(loadedStories)
   
       // Add voteCount to each story
       const storiesWithVotes = await Promise.all(
@@ -1270,7 +1281,7 @@ export class StoriesComponent implements OnInit {
   
       // Update UI state
       this.updateAvailableCategories();
-      this.hasMoreStories = loadedStories.length === 50;
+      this.hasMoreStories = loadedStories.length === 20;
   
     } catch (error) {
       console.error('Error loading stories:', error);
