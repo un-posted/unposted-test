@@ -1,1 +1,58 @@
 /* You can add global styles to this file, and also import other style files */
+:root {
+    --main-color: #F7C843;
+    --text-dark: #2e2e2e;
+    --text-light: #666;
+    --bg: #fdfcf9;
+    --card-shadow: 0 4px 12px rgba(0,0,0,0.06);
+    --card-shadow-hover: 0 8px 25px rgba(0,0,0,0.1);
+  }
+  
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+  
+  body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: var(--bg);
+    color: var(--text-dark);
+    line-height: 1.6;
+  }
+  
+  // Button styles
+  .cta-btn {
+    background: var(--main-color);
+    color: var(--text-dark);
+    padding: 0.7rem 1.5rem;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.9rem;
+    transition: all 0.3s ease;
+    border: 2px solid var(--main-color);
+    cursor: pointer;
+    
+    &:hover {
+      background: transparent;
+      color: var(--main-color);
+      transform: translateY(-2px);
+    }
+  }
+  
+  .cta-btn-read {
+    background: transparent;
+    color: var(--main-color);
+    padding: 0.7rem 1.5rem;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 600;
+    border: 2px solid var(--main-color);
+    cursor: pointer;
+    
+    &:hover {
+      background: var(--main-color);
+      color: var(--text-dark);
+    }
+  }
