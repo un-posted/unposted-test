@@ -25,4 +25,15 @@ export class AuthService {
   async emailRegister(email: string, password: string) { return createUserWithEmailAndPassword(this.auth, email, password); }
   async emailLogin(email: string, password: string) { return signInWithEmailAndPassword(this.auth, email, password); }
   async logout() { return signOut(this.auth); }
+
+
+  async googleLogin() {
+    const provider = new GoogleAuthProvider();
+    try {
+      const result = await signInWithPopup(this.auth, provider);
+      return result.user;
+    } catch (error) {
+      throw error;
+    }
+  }
 }

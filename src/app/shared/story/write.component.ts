@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy, inject, ViewChild, ElementRef } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, ViewChild, ElementRef, AfterViewInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -202,17 +202,19 @@ import { DraftsService } from './services/draft.service';
             (input)="onContentInput($event)"
             (focus)="onEditorFocus()"
             (blur)="onEditorBlur()"
+            (keydown)="onEditorKeydown($event)"
             (keyup)="onEditorKeyup($event)"
             (paste)="onEditorPaste($event)"
             [attr.dir]="isRTL ? 'rtl' : 'ltr'"
             #contentEditor
           >
-          </div>
-
           <!-- Editor Placeholder -->
           <div class="editor-placeholder" *ngIf="!formData.content || formData.content.length === 0">
             Tell your story...
           </div>
+          </div>
+
+          
 
           <!-- Writing Stats -->
           <div class="writing-stats" *ngIf="formData.content && formData.content.length > 0">
@@ -383,7 +385,7 @@ import { DraftsService } from './services/draft.service';
       display: flex;
       align-items: center;
       justify-content: center;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background: linear-gradient(135deg, #F7C843 0%, #f7a600 100%);
       font-family: var(--font-sans);
     }
 
@@ -684,21 +686,24 @@ import { DraftsService } from './services/draft.service';
 
     /* Editor Toolbar */
     .editor-toolbar {
-      position: fixed;
-      display: flex;
-      align-items: center;
-      background: var(--text-primary);
-      border-radius: 6px;
-      padding: 0.5rem;
-      box-shadow: var(--shadow-heavy);
-      opacity: 0;
-      visibility: hidden;
-      transition: all 0.2s;
-      z-index: 1000;
-      pointer-events: none;
-      user-select: none;
-      -webkit-user-select: none;
-    }
+  position: fixed;
+  display: flex;
+  align-items: center;
+  background: var(--text-primary);
+  border-radius: 6px;
+  padding: 0.5rem;
+  box-shadow: var(--shadow-heavy);
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.2s;
+  z-index: 1000;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
+  /* Add these for better mobile compatibility */
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
 
     .editor-toolbar.visible {
       opacity: 1;
@@ -759,15 +764,17 @@ import { DraftsService } from './services/draft.service';
     }
 
     .editor-placeholder {
-      position: absolute;
-      top: 1rem;
-      left: 0;
-      font-family: var(--font-serif);
-      font-size: 1.25rem;
-      color: var(--text-muted);
-      pointer-events: none;
-      font-style: italic;
-    }
+  position: absolute;
+  top: 1rem;
+  left: 0;
+  right: 0;
+  font-family: var(--font-serif);
+  font-size: 1.25rem;
+  color: var(--text-muted);
+  pointer-events: none;
+  font-style: italic;
+  z-index: 1; /* Add this line */
+}
 
     .content-editor h1, .content-editor h2 {
       font-weight: 700;
@@ -819,7 +826,7 @@ import { DraftsService } from './services/draft.service';
 
     /* Buttons */
     .btn-primary {
-      background: var(--primary);
+      background: #f7a600;
       color: white;
       border: none;
       padding: 0.75rem 1.5rem;
@@ -833,13 +840,13 @@ import { DraftsService } from './services/draft.service';
     }
 
     .btn-primary:hover:not(:disabled) {
-      background: var(--primary-hover);
+      background: #f7c843;
     }
 
     .btn-outline {
       background: transparent;
-      color: var(--primary);
-      border: 1px solid var(--primary);
+      color: #f7c843;
+      border: 1px solid #f7c843;
       padding: 0.75rem 1.5rem;
       border-radius: var(--radius);
       font-weight: 600;
@@ -851,7 +858,7 @@ import { DraftsService } from './services/draft.service';
     }
 
     .btn-outline:hover:not(:disabled) {
-      background: var(--primary);
+      background: #f7a600;
       color: white;
     }
 
@@ -876,7 +883,7 @@ import { DraftsService } from './services/draft.service';
     }
 
     .btn-publish {
-      background: var(--primary);
+      background: #F7C843;
       color: white;
       border: none;
       padding: 0.75rem 1.5rem;
@@ -887,7 +894,7 @@ import { DraftsService } from './services/draft.service';
     }
 
     .btn-publish:hover:not(:disabled) {
-      background: var(--primary-hover);
+      background: #f7a600;
     }
 
     .btn-primary:disabled,
@@ -1254,8 +1261,15 @@ import { DraftsService } from './services/draft.service';
       }
 
       .content-editor {
-        font-size: 1.125rem;
-      }
+  font-family: var(--font-serif);
+  font-size: 1.25rem;
+  line-height: 1.6;
+  color: var(--text-primary);
+  min-height: 300px;
+  padding: 1rem 0;
+  outline: none;
+  position: relative; /* Add this line */
+}
 
       .modal-overlay {
         padding: 1rem;
@@ -1293,46 +1307,83 @@ import { DraftsService } from './services/draft.service';
         font-size: 1.75rem;
       }
 
-      .content-editor {
-        font-size: 1rem;
-      }
-
       .editor-toolbar {
-        position: sticky;
-        top: 80px;
-        left: 50%;
-        transform: translateX(-50%);
-        margin: 1rem 0;
-        opacity: 1;
-        visibility: visible;
-        pointer-events: auto;
-        background: var(--background-secondary);
-        box-shadow: var(--shadow-light);
-        border: 1px solid var(--border-light);
-      }
+    position: fixed;
+    bottom: 1rem;
+    left: 50%;
+    transform: translateX(-50%);
+    top: auto;
+    margin: 0;
+    width: 90%;
+    justify-content: center;
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    background: var(--background-secondary);
+    box-shadow: var(--shadow-medium);
+    border: 1px solid var(--border-light);
+  }
 
-      .editor-toolbar button {
-        color: var(--text-primary);
-      }
+  .editor-toolbar button {
+    color: var(--text-primary);
+    width: 44px; /* Larger touch targets for mobile */
+    height: 44px;
+  }
+
+  .editor-toolbar button:hover,
+  .editor-toolbar button.active {
+    background: var(--border-light);
+  }
+
+  .toolbar-divider {
+    background: var(--border-medium);
+    height: 32px;
+    margin: 0 0.25rem;
+  }
+  
+  /* Ensure content editor has enough space above toolbar */
+  .content-editor {
+    margin-bottom: 4rem;
+  }
+}
+
+/* Add these styles for better mobile editor experience */
+.content-editor {
+  /* Existing styles */
+  -webkit-user-select: auto;
+  -webkit-touch-callout: default;
+  -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
+}
+
+/* Improve touch targets for mobile */
+@media (max-width: 768px) {
+  .btn-ghost, .btn-publish {
+    padding: 0.875rem 1.25rem;
+    min-height: 44px; /* Minimum touch target size */
+  }
+  
+  .toolbar-group button {
+    min-width: 44px;
+    min-height: 44px;
+  }
 
       .editor-toolbar button:hover,
       .editor-toolbar button.active {
         background: var(--border-light);
       }
 
-      .toolbar-divider {
-        background: var(--border-medium);
-      }
+      
     }
   `]
 })
-export class WriteStoryComponent implements OnInit, OnDestroy {
+export class WriteStoryComponent implements OnInit, OnDestroy, AfterViewInit {
   @ViewChild('contentEditor') contentEditor!: ElementRef;
   
   private storiesService = inject(StoriesService);
   private draftsService = inject(DraftsService);
   private authService = inject(AuthService);
   private router = inject(Router);
+  
 
   // Component properties
   currentUser: any = null;
@@ -1352,6 +1403,7 @@ export class WriteStoryComponent implements OnInit, OnDestroy {
   // Editor properties
   private selectionRange: Range | null = null;
   private toolbarTimeout?: number;
+  private isInitialized = false;
 
   // Emoji suggestions
   emojiSuggestions = [
@@ -1417,6 +1469,9 @@ export class WriteStoryComponent implements OnInit, OnDestroy {
     this.loadDraft();
     this.setupAutoSave();
     this.setupKeyboardShortcuts();
+  }
+
+  ngAfterViewInit() {
     this.initializeEditor();
   }
 
@@ -1438,81 +1493,28 @@ export class WriteStoryComponent implements OnInit, OnDestroy {
 
   // Editor initialization
   private initializeEditor() {
-    setTimeout(() => {
-      if (this.contentEditor?.nativeElement) {
-        const editor = this.contentEditor.nativeElement;
-        
-        // Set initial content if exists
-        if (this.formData.content) {
-          editor.innerHTML = this.formData.content;
-        }
-        
-        // Configure contenteditable behavior
-        editor.setAttribute('spellcheck', 'true');
-        editor.setAttribute('autocomplete', 'off');
-        editor.setAttribute('autocorrect', 'on');
-        editor.setAttribute('autocapitalize', 'sentences');
-        
-        // Prevent certain formatting commands that might break the editor
-        editor.addEventListener('keydown', (e: KeyboardEvent) => {
-          // Prevent tab key from losing focus
-          if (e.key === 'Tab') {
-            e.preventDefault();
-            document.execCommand('insertText', false, '    '); // Insert 4 spaces instead
-          }
-          
-          // Handle Enter key for better paragraph formatting
-          if (e.key === 'Enter' && !e.shiftKey) {
-            // Let the default behavior handle this, but clean up afterward
-            setTimeout(() => {
-              this.cleanupEditorContent();
-            }, 0);
-          }
-        });
-      }
-    }, 100);
-  }
-
-  private cleanupEditorContent() {
-    if (!this.contentEditor?.nativeElement) return;
+    if (this.isInitialized || !this.contentEditor?.nativeElement) return;
     
     const editor = this.contentEditor.nativeElement;
-    let content = editor.innerHTML;
     
-    // Clean up common contenteditable issues
-    content = content
-      .replace(/<div><br><\/div>/g, '<p><br></p>') // Convert empty divs to paragraphs
-      .replace(/<div>/g, '<p>') // Convert divs to paragraphs
-      .replace(/<\/div>/g, '</p>')
-      .replace(/<p><\/p>/g, '<p><br></p>') // Add br to empty paragraphs
-      .replace(/&nbsp;/g, ' ') // Convert non-breaking spaces
-      .trim();
-    
-    if (content !== editor.innerHTML) {
-      // Save cursor position
-      const selection = window.getSelection();
-      const range = selection?.rangeCount ? selection.getRangeAt(0) : null;
-      const cursorPosition = range ? range.startOffset : 0;
-      
-      // Update content
-      editor.innerHTML = content;
-      
-      // Restore cursor position (simplified)
-      if (range && editor.firstChild) {
-        try {
-          const newRange = document.createRange();
-          newRange.setStart(editor.firstChild, Math.min(cursorPosition, editor.firstChild.textContent?.length || 0));
-          newRange.collapse(true);
-          selection?.removeAllRanges();
-          selection?.addRange(newRange);
-        } catch (error) {
-          // If cursor restoration fails, just focus the editor
-          editor.focus();
-        }
-      }
-      
-      this.formData.content = content;
+    // Set initial content if exists
+    if (this.formData.content) {
+      editor.innerHTML = this.formData.content;
+    } else {
+      // Set up proper paragraph structure for new content
+      editor.innerHTML = '<p><br></p>';
     }
+    
+    // Configure contenteditable behavior
+    editor.setAttribute('spellcheck', 'true');
+    editor.setAttribute('autocomplete', 'off');
+    editor.setAttribute('autocorrect', 'on');
+    editor.setAttribute('autocapitalize', 'sentences');
+    
+    // Set default paragraph style
+    document.execCommand('defaultParagraphSeparator', false, 'p');
+    
+    this.isInitialized = true;
   }
 
   // Navigation
@@ -1528,7 +1530,7 @@ export class WriteStoryComponent implements OnInit, OnDestroy {
 
   getUserAvatar(): string {
     if (!this.currentUser) return '/assets/default-avatar.png';
-    return this.currentUser.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(this.getUserName())}&background=1a8917&color=fff`;
+    return this.currentUser.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(this.getUserName())}&background=f7c843&color=fff`;
   }
 
   // Content analysis
@@ -1609,6 +1611,39 @@ export class WriteStoryComponent implements OnInit, OnDestroy {
     }
   }
 
+  onEditorKeydown(event: KeyboardEvent) {
+    // Handle Enter key for better paragraph formatting
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault();
+      
+      // Use modern approach to insert paragraph break
+      document.execCommand('formatBlock', false, 'p');
+      
+      // Insert a new paragraph
+      document.execCommand('insertParagraph', false);
+      
+      // Clean up any empty paragraphs or divs
+      setTimeout(() => {
+        this.cleanupEditorContent();
+      }, 0);
+    }
+    
+    // Handle Tab key to insert spaces instead of losing focus
+    if (event.key === 'Tab') {
+      event.preventDefault();
+      document.execCommand('insertText', false, '    ');
+    }
+  }
+
+  onEditorKeyup(event: KeyboardEvent) {
+    this.updateContentFromEditor();
+    
+    // Handle special keys
+    if (event.key === 'Escape') {
+      this.showToolbar = false;
+    }
+  }
+
   onEditorFocus() {
     // Setup selection tracking
     document.addEventListener('selectionchange', this.handleSelectionChange.bind(this));
@@ -1620,38 +1655,66 @@ export class WriteStoryComponent implements OnInit, OnDestroy {
     this.hideToolbarDelayed();
   }
 
-  private handleSelectionChange() {
-    const selection = window.getSelection();
-    if (!selection || selection.rangeCount === 0) {
-      this.hideToolbarDelayed();
-      return;
-    }
-
-    const range = selection.getRangeAt(0);
-    const editorElement = this.contentEditor?.nativeElement;
-    
-    // Check if selection is within our editor
-    if (!editorElement || !editorElement.contains(range.commonAncestorContainer)) {
-      this.hideToolbarDelayed();
-      return;
-    }
-
-    if (!selection.isCollapsed && range.toString().trim().length > 0) {
-      this.selectionRange = range.cloneRange();
-      this.showToolbarAtSelection();
-    } else {
-      this.hideToolbarDelayed();
-    }
+  // Replace the handleSelectionChange method with this corrected version
+private handleSelectionChange() {
+  const selection = window.getSelection();
+  if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
+    this.hideToolbarDelayed();
+    return;
   }
 
-  private showToolbarAtSelection() {
-    if (this.toolbarTimeout) {
-      clearTimeout(this.toolbarTimeout);
-    }
-    
-    this.showToolbar = true;
+  const range = selection.getRangeAt(0);
+  const editorElement = this.contentEditor?.nativeElement;
+  
+  // Check if selection is within our editor
+  if (!editorElement || !editorElement.contains(range.commonAncestorContainer)) {
+    this.hideToolbarDelayed();
+    return;
+  }
+
+  if (range.toString().trim().length > 0) {
+    this.selectionRange = range.cloneRange();
+    this.showToolbarAtSelection();
+  } else {
+    this.hideToolbarDelayed();
+  }
+}
+
+// Add this method to properly handle toolbar positioning
+private showToolbarAtSelection() {
+  if (this.toolbarTimeout) {
+    clearTimeout(this.toolbarTimeout);
+  }
+  
+  this.showToolbar = true;
+  
+  // Use setTimeout to ensure the DOM is updated before positioning
+  setTimeout(() => {
     this.updateToolbarPosition();
+  }, 0);
+}
+
+// Update the formatText method to ensure proper execution
+formatText(command: string, value?: string) {
+  // Restore selection before formatting
+  if (this.selectionRange) {
+    const selection = window.getSelection();
+    if (selection) {
+      selection.removeAllRanges();
+      selection.addRange(this.selectionRange);
+    }
   }
+  
+  // Apply formatting
+  document.execCommand(command, false, value);
+  
+  // Update content and maintain focus
+  this.updateContentFromEditor();
+  this.contentEditor?.nativeElement.focus();
+  
+  // Hide toolbar after formatting
+  this.hideToolbarDelayed();
+}
 
   private hideToolbarDelayed() {
     if (this.toolbarTimeout) {
@@ -1696,33 +1759,7 @@ export class WriteStoryComponent implements OnInit, OnDestroy {
     }
   }
 
-  formatText(command: string, value?: string) {
-    // Restore selection before formatting
-    if (this.selectionRange) {
-      const selection = window.getSelection();
-      if (selection) {
-        selection.removeAllRanges();
-        selection.addRange(this.selectionRange);
-      }
-    }
-    
-    // Apply formatting
-    const success = document.execCommand(command, false, value);
-    
-    if (success) {
-      // Update content and maintain focus
-      this.updateContentFromEditor();
-      
-      // Update selection range
-      const selection = window.getSelection();
-      if (selection && selection.rangeCount > 0) {
-        this.selectionRange = selection.getRangeAt(0);
-      }
-    }
-    
-    // Keep focus on editor
-    this.contentEditor?.nativeElement.focus();
-  }
+  
 
   insertLink() {
     const url = prompt('Enter URL:');
@@ -1747,15 +1784,6 @@ export class WriteStoryComponent implements OnInit, OnDestroy {
     }
   }
 
-  onEditorKeyup(event: KeyboardEvent) {
-    this.updateContentFromEditor();
-    
-    // Handle special keys
-    if (event.key === 'Escape') {
-      this.showToolbar = false;
-    }
-  }
-
   onEditorPaste(event: ClipboardEvent) {
     event.preventDefault();
     
@@ -1764,6 +1792,47 @@ export class WriteStoryComponent implements OnInit, OnDestroy {
       // Insert as plain text to avoid style conflicts
       document.execCommand('insertText', false, paste);
       this.updateContentFromEditor();
+    }
+  }
+
+  private cleanupEditorContent() {
+    if (!this.contentEditor?.nativeElement) return;
+    
+    const editor = this.contentEditor.nativeElement;
+    let content = editor.innerHTML;
+    
+    // Clean up common contenteditable issues
+    content = content
+      .replace(/<div><br><\/div>/g, '<p><br></p>') // Convert empty divs to paragraphs
+      .replace(/<div>/g, '<p>') // Convert divs to paragraphs
+      .replace(/<\/div>/g, '</p>')
+      .replace(/<p><\/p>/g, '<p><br></p>') // Add br to empty paragraphs
+      .replace(/&nbsp;/g, ' ') // Convert non-breaking spaces
+      .trim();
+    
+    if (content !== editor.innerHTML) {
+      // Save cursor position
+      const selection = window.getSelection();
+      const range = selection?.rangeCount ? selection.getRangeAt(0) : null;
+      
+      // Update content
+      editor.innerHTML = content;
+      
+      // Restore cursor position to end if we can't determine exact position
+      if (range && editor.lastChild) {
+        try {
+          const newRange = document.createRange();
+          newRange.setStart(editor.lastChild, editor.lastChild.textContent?.length || 0);
+          newRange.collapse(true);
+          selection?.removeAllRanges();
+          selection?.addRange(newRange);
+        } catch (error) {
+          // If cursor restoration fails, just focus the editor
+          editor.focus();
+        }
+      }
+      
+      this.formData.content = content;
     }
   }
 

@@ -346,40 +346,43 @@ async getUserStoryCount(userId: string): Promise<number> {
   }
 
 
-  /**
-   * Award XP points to a user and optionally log a reason.
-   * @param uid User ID
-   * @param amount Number of XP points to add
-   * @param reason Optional reason for logging the XP gain
-   */
-  async awardUserXP(uid: string, amount: number, reason?: string): Promise<void> {
-    try {
-      const userRef = doc(this.fs, 'profiles', uid);
+ async updateUserProfile(uid: string, data: Partial<UserProfile>): Promise<void> {
+  const docRef = doc(this.fs, 'profiles', uid);
+  await updateDoc(docRef, {
+    ...data,
+    updatedAt: serverTimestamp()
+  });
+}
 
-      // Increment XP and update lastXPDate
-      await updateDoc(userRef, {
-        'stats.xp': increment(amount),
-        lastXPAwardedAt: serverTimestamp()
-      });
+async awardUserXP(uid: string, amount: number, reason: string): Promise<void> {
+  const docRef = doc(this.fs, 'profiles', uid);
+  
+  // Get current XP
+  const profile = await this.getUserProfile(uid);
+  const currentXP = profile?.totalXP || 0;
+  const newXP = currentXP + amount;
+  
+  // Calculate new level
+  const newLevel = this.calculateLevel(newXP);
+  
+  // Update profile
+  await updateDoc(docRef, {
+    totalXP: newXP,
+    level: newLevel,
+    updatedAt: serverTimestamp()
+  });
+  
+  // Log XP award (optional)
+  const xpLogRef = doc(collection(this.fs, `profiles/${uid}/xpLogs`));
+  await setDoc(xpLogRef, {
+    amount,
+    reason,
+    awardedAt: serverTimestamp(),
+    totalXP: newXP
+  });
+}
 
-      // Optional: log the XP award in a subcollection
-      if (reason) {
-        const xpLogRef = doc(this.fs, `profiles/${uid}/xpLogs/${Date.now().toString()}`);
-        await updateDoc(xpLogRef, {
-          amount,
-          reason,
-          awardedAt: serverTimestamp()
-        }).catch(async () => {
-          // If doc doesn't exist, create it
-          await setDoc(xpLogRef, {
-            amount,
-            reason,
-            awardedAt: serverTimestamp()
-          });
-        });
-      }
-    } catch (error) {
-      console.error(`Error awarding XP to user ${uid}:`, error);
-    }
-  }
+private calculateLevel(totalXP: number): number {
+  return Math.floor(Math.sqrt(totalXP / 100)) + 1;
+}
 }

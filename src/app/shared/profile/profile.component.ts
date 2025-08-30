@@ -8,10 +8,11 @@ import { UserProfile } from '../models/user-profile';
 import { Draft } from '../models/draft';
 import { Story } from '../models/story';
 import { Bookmark } from '../models/bookmark';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { getAuth, user } from '@angular/fire/auth';
 import { ViewsService } from '../story/services/views.service';
 import { DraftsService } from '../story/services/draft.service';
+import { VotesService } from '../story/services/vote.service';
 
 interface Badge {
   id: string;
@@ -85,6 +86,9 @@ interface Achievement {
               <div class="streak-indicator">
                 🔥 {{ userProfile.writingStreak }}-day writing streak
               </div>
+              <small class="streak-info" *ngIf="userProfile.lastWriteDate">
+                Last activity: {{ formatDate(userProfile.lastWriteDate) }}
+              </small>
             </div>
 
             <!-- XP Progress -->
@@ -130,7 +134,7 @@ interface Achievement {
                 <span class="stat-label">Articles</span>
               </div>
               <div class="stat">
-                <span class="stat-number">{{ userProfile.stats.bookmarksCount }}</span>
+                <span class="stat-number">{{ bookmarks.length }}</span>
                 <span class="stat-label">Bookmarks</span>
               </div>
               <div class="stat">
@@ -140,6 +144,10 @@ interface Achievement {
               <div class="stat">
                 <span class="stat-number">{{ formatNumber(userProfile.stats.followingCount) || 0 }}</span>
                 <span class="stat-label">Following</span>
+              </div>
+              <div class="stat" *ngIf="userProfile.stats.totalViews">
+                <span class="stat-number">{{ formatNumber(userProfile.stats.totalViews) }}</span>
+                <span class="stat-label">Total Views</span>
               </div>
             </div>
 
@@ -184,24 +192,24 @@ interface Achievement {
           </div>
         </div>
 
-        <!-- Community Impact -->
-        <div class="community-section" *ngIf="userProfile.stats?.totalViews || userProfile.stats?.bookmarksCount">
-          <h3 class="section-title">Community Impact</h3>
-          <div class="impact-stats">
-            <div class="impact-stat" *ngIf="userProfile.stats?.bookmarksCount">
-              <span class="impact-number">{{ formatNumber(userProfile.stats.bookmarksCount) }}</span>
-              <span class="impact-label">Total reads across your stories</span>
-            </div>
-            <div class="impact-stat" *ngIf="userProfile.stats?.bookmarksCount">
-              <span class="impact-number">{{ userProfile.stats.bookmarksCount }}</span>
-              <span class="impact-label">Times your stories were bookmarked</span>
-            </div>
-            <div class="impact-stat" *ngIf="userProfile.stats?.bookmarksCount">
-              <span class="impact-number">{{ formatNumber(userProfile.stats.totalViews) }}</span>
-              <span class="impact-label">Comments on your stories</span>
-            </div>
-          </div>
-        </div>
+        <!-- Update the Community Impact section -->
+<div class="community-section" *ngIf="userProfile.stats?.totalViews || userProfile.stats.bookmarksCount">
+  <h3 class="section-title">Community Impact</h3>
+  <div class="impact-stats">
+    <div class="impact-stat" *ngIf="userProfile.stats?.totalViews">
+      <span class="impact-number">{{ formatNumber(userProfile.stats.totalViews) }}</span>
+      <span class="impact-label">Total reads across your stories</span>
+    </div>
+    <div class="impact-stat" *ngIf="userProfile.stats.bookmarksCount">
+      <span class="impact-number">{{ userProfile.stats.bookmarksCount }}</span>
+      <span class="impact-label">Times your stories were bookmarked</span>
+    </div>
+    <div class="impact-stat" *ngIf="userProfile.stats?.totalVotes">
+      <span class="impact-number">{{ formatNumber(userProfile.stats.totalVotes) }}</span>
+      <span class="impact-label">Total votes on your stories</span>
+    </div>
+  </div>
+</div>
 
         <!-- Navigation Tabs -->
         <div class="tabs-container">
@@ -249,6 +257,10 @@ interface Achievement {
               <p class="card-excerpt">{{ draft.excerpt || getExcerpt(draft.content) }}</p>
               <div class="card-footer">
                 <span class="card-date">Last modified {{ formatDate(draft.updatedAt) }}</span>
+                <div class="card-stats">
+                  <span class="stat-item">📝 {{ draft.wordCount || 0 }} words</span>
+                  <span class="stat-item">⏱ {{ draft.readTime || 1 }} min read</span>
+                </div>
                 <div class="card-actions">
                   <button class="action-btn" (click)="editDraft(draft)">Edit</button>
                   <button class="action-btn secondary" (click)="publishDraft(draft)">
@@ -279,7 +291,12 @@ interface Achievement {
                 <span *ngFor="let tag of story.tags" class="tag">{{ tag }}</span>
               </div>
               <div class="card-footer">
-                
+                <span class="card-date">Published {{ formatDate(story.createdAt) }}</span>
+                <div class="card-stats">
+                  <span class="stat-item">👁 {{ story.readCount || 0 }} views</span>
+                  <span class="stat-item">⭐ {{ story.voteCount || 0 }} votes</span>
+                  <span class="stat-item">⏱ {{ story.readTime || 1 }} min read</span>
+                </div>
               </div>
             </div>
           </div>
@@ -328,715 +345,727 @@ interface Achievement {
   `,
   styles: [`
     .profile-container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 2rem;
-  background-color: #FDFCF9;
-  min-height: 100vh;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-}
-
-.loading-state,
-.error-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  min-height: 400px;
-  text-align: center;
-}
-
-.spinner {
-  width: 40px;
-  height: 40px;
-  border: 4px solid #EDEAE3;
-  border-top: 4px solid #F7C843;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin-bottom: 1rem;
-}
-
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-.profile-header {
-  display: flex;
-  gap: 2rem;
-  margin-bottom: 2rem;
-  background: #ffffff;
-  padding: 2rem;
-  border-radius: 16px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-  border: 1px solid #EDEAE3;
-}
-
-.avatar-section {
-  flex-shrink: 0;
-  position: relative;
-}
-
-.avatar-container {
-  position: relative;
-  cursor: pointer;
-  width: 120px;
-  height: 120px;
-  border-radius: 50%;
-  overflow: hidden;
-  transition: all 0.2s ease;
-}
-
-.avatar {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  border: 3px solid #EDEAE3;
-}
-
-.level-badge {
-  position: absolute;
-  bottom: -5px;
-  right: -5px;
-  width: 36px;
-  height: 36px;
-  background: linear-gradient(135deg, #F7C843, #EDEAE3);
-  border: 3px solid white;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 2px 8px rgba(247, 200, 67, 0.3);
-}
-
-.level-number {
-  color: #2E2E2E;
-  font-weight: 700;
-  font-size: 0.875rem;
-}
-
-.profile-info {
-  flex: 1;
-  min-width: 0;
-}
-
-.name-section {
-  margin-bottom: 1rem;
-}
-
-.user-name {
-  font-size: 2rem;
-  font-weight: 700;
-  color: #2E2E2E;
-  margin: 0;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  transition: color 0.2s ease;
-}
-
-.user-name:hover {
-  color: #F7C843;
-}
-
-.edit-icon {
-  font-size: 1rem;
-  opacity: 0;
-  transition: opacity 0.2s ease;
-}
-
-.user-name:hover .edit-icon,
-.user-bio:hover .edit-icon {
-  opacity: 1;
-}
-
-.streak-section {
-  margin-bottom: 1rem;
-}
-
-.streak-indicator {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  background: linear-gradient(135deg, #F7C843, #EDEAE3);
-  color: #2E2E2E;
-  padding: 0.5rem 1rem;
-  border-radius: 20px;
-  font-size: 0.875rem;
-  font-weight: 600;
-  box-shadow: 0 2px 8px rgba(247, 200, 67, 0.2);
-}
-
-.xp-section {
-  margin-bottom: 1rem;
-}
-
-.xp-info {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 0.5rem;
-  font-size: 0.875rem;
-}
-
-.xp-current {
-  font-weight: 600;
-  color: #2E2E2E;
-}
-
-.xp-next {
-  color: #666666;
-}
-
-.xp-bar {
-  height: 8px;
-  background: #EDEAE3;
-  border-radius: 4px;
-  overflow: hidden;
-}
-
-.xp-progress {
-  height: 100%;
-  background: linear-gradient(90deg, #F7C843, #EDEAE3);
-  border-radius: 4px;
-  transition: width 0.3s ease;
-}
-
-.follow-section {
-  margin-top: 1rem;
-}
-
-.follow-btn {
-  padding: 0.75rem 1.5rem;
-  border-radius: 8px;
-  font-size: 0.875rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  border: 2px solid #F7C843;
-  background: #F7C843;
-  color: #2E2E2E;
-}
-
-.follow-btn:hover {
-  background: #EDEAE3;
-}
-
-.follow-btn.following {
-  background: transparent;
-  color: #F7C843;
-}
-
-.follow-btn.following:hover {
-  background: #EDEAE3;
-}
-
-.follow-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.name-edit,
-.bio-edit {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.name-input {
-  font-size: 2rem;
-  font-weight: 700;
-  color: #2E2E2E;
-  border: 2px solid #F7C843;
-  border-radius: 8px;
-  padding: 0.5rem;
-  background: #FDFCF9;
-  font-family: inherit;
-  outline: none;
-}
-
-.bio-section {
-  margin-bottom: 1.5rem;
-}
-
-.user-bio {
-  font-size: 1.125rem;
-  color: #666666;
-  line-height: 1.6;
-  margin: 0;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: flex-start;
-  gap: 0.5rem;
-  transition: color 0.2s ease;
-}
-
-.user-bio:hover {
-  color: #2E2E2E;
-}
-
-.bio-textarea {
-  font-size: 1.125rem;
-  color: #2E2E2E;
-  border: 2px solid #F7C843;
-  border-radius: 8px;
-  padding: 0.75rem;
-  background: #FDFCF9;
-  font-family: inherit;
-  resize: vertical;
-  outline: none;
-  line-height: 1.6;
-  min-height: 80px;
-}
-
-.edit-actions {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.save-btn,
-.cancel-btn,
-.create-btn,
-.retry-btn {
-  padding: 0.5rem 1rem;
-  border-radius: 6px;
-  font-size: 0.875rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  border: none;
-}
-
-.save-btn,
-.create-btn,
-.retry-btn {
-  background: #F7C843;
-  color: #2E2E2E;
-}
-
-.save-btn:hover,
-.create-btn:hover,
-.retry-btn:hover {
-  background: #EDEAE3;
-}
-
-.save-btn:disabled {
-  background: #666666;
-  cursor: not-allowed;
-}
-
-.cancel-btn {
-  background: #EDEAE3;
-  color: #666666;
-}
-
-.cancel-btn:hover {
-  background: #666666;
-  color: #fff;
-}
-
-.user-stats {
-  display: flex;
-  gap: 2rem;
-}
-
-.stat {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-}
-
-.stat-number {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: #2E2E2E;
-}
-
-.stat-label {
-  font-size: 0.875rem;
-  color: #666666;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.motivation-banner {
-  background: linear-gradient(135deg, #F7C843, #EDEAE3);
-  border-radius: 16px;
-  padding: 1.5rem;
-  margin-bottom: 2rem;
-  border: 1px solid #F7C843;
-}
-
-.motivation-content {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  color: #2E2E2E;
-  font-weight: 500;
-}
-
-.motivation-icon {
-  font-size: 1.25rem;
-}
-
-.badges-section,
-.community-section {
-  background: #ffffff;
-  border-radius: 16px;
-  padding: 2rem;
-  margin-bottom: 2rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-  border: 1px solid #EDEAE3;
-}
-
-.section-title {
-  font-size: 1.25rem;
-  font-weight: 600;
-  color: #2E2E2E;
-  margin: 0 0 1.5rem 0;
-}
-
-.badges-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 1rem;
-}
-
-.badge-item {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 1rem;
-  border-radius: 12px;
-  background: #EDEAE3;
-  transition: all 0.2s ease;
-  opacity: 0.5;
-}
-
-.badge-item.unlocked {
-  background: linear-gradient(135deg, #F7C843, #EDEAE3);
-  opacity: 1;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(247, 200, 67, 0.2);
-}
-
-.badge-icon {
-  font-size: 1.5rem;
-  width: 40px;
-  text-align: center;
-}
-
-.badge-info {
-  flex: 1;
-  min-width: 0;
-}
-
-.badge-name {
-  font-weight: 600;
-  color: #2E2E2E;
-  font-size: 0.875rem;
-}
-
-.badge-progress {
-  font-size: 0.75rem;
-  color: #666666;
-  margin-top: 0.25rem;
-}
-
-.impact-stats {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 2rem;
-}
-
-.impact-stat {
-  text-align: center;
-}
-
-.impact-number {
-  display: block;
-  font-size: 2rem;
-  font-weight: 700;
-  color: #F7C843;
-  margin-bottom: 0.5rem;
-}
-
-.impact-label {
-  color: #666666;
-  font-size: 0.875rem;
-  line-height: 1.4;
-}
-
-.tabs-container {
-  margin-bottom: 2rem;
-}
-
-.tabs {
-  display: flex;
-  background: #ffffff;
-  border-radius: 12px;
-  padding: 0.25rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-  border: 1px solid #EDEAE3;
-}
-
-.tab {
-  flex: 1;
-  padding: 0.875rem 1.5rem;
-  background: none;
-  border: none;
-  border-radius: 8px;
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: #666666;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.tab:hover {
-  color: #2E2E2E;
-  background: #EDEAE3;
-}
-
-.tab.active {
-  color: #2E2E2E;
-  background: #F7C843;
-}
-
-.content-container {
-  background: #ffffff;
-  border-radius: 16px;
-  padding: 2rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-  border: 1px solid #EDEAE3;
-}
-
-.content-section {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
-
-.empty-state {
-  text-align: center;
-  padding: 3rem 1rem;
-  color: #666666;
-}
-
-.empty-state h3 {
-  font-size: 1.25rem;
-  margin: 0 0 0.5rem 0;
-  color: #2E2E2E;
-}
-
-.empty-state p {
-  margin: 0 0 1rem 0;
-  font-size: 1rem;
-}
-
-.empty-rewards {
-  margin-bottom: 1.5rem;
-}
-
-.reward-text {
-  display: inline-block;
-  background: linear-gradient(135deg, #F7C843, #EDEAE3);
-  color: #2E2E2E;
-  padding: 0.5rem 1rem;
-  border-radius: 20px;
-  font-size: 0.875rem;
-  font-weight: 500;
-}
-
-.content-card {
-  padding: 1.5rem;
-  border: 1px solid #EDEAE3;
-  border-radius: 12px;
-  background: #FDFCF9;
-  transition: all 0.2s ease;
-}
-
-.content-card:hover {
-  border-color: #F7C843;
-  box-shadow: 0 2px 8px rgba(247, 200, 67, 0.1);
-}
-
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 0.75rem;
-}
-
-.card-title {
-  font-size: 1.125rem;
-  font-weight: 600;
-  color: #2E2E2E;
-  margin: 0;
-  line-height: 1.4;
-  flex: 1;
-}
-
-.card-meta {
-  font-size: 0.875rem;
-  color: #666666;
-  white-space: nowrap;
-  margin-left: 1rem;
-}
-
-.card-excerpt {
-  color: #666666;
-  line-height: 1.6;
-  margin: 0 0 1rem 0;
-}
-
-.bookmark-notes {
-  color: #666666;
-  line-height: 1.6;
-  margin: 0.5rem 0;
-  font-style: italic;
-  background: #EDEAE3;
-  padding: 0.75rem;
-  border-radius: 6px;
-}
-
-.card-footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 0.875rem;
-  flex-wrap: wrap;
-  gap: 1rem;
-}
-
-.card-date {
-  color: #666666;
-}
-
-.card-actions {
-  display: flex;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-
-.card-stats {
-  display: flex;
-  gap: 1rem;
-}
-
-.stat-item {
-  color: #666666;
-}
-
-.action-btn {
-  padding: 0.375rem 0.875rem;
-  border-radius: 6px;
-  font-size: 0.875rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  border: 1px solid #F7C843;
-  background: #F7C843;
-  color: #2E2E2E;
-}
-
-.action-btn:hover {
-  background: #EDEAE3;
-  border-color: #EDEAE3;
-}
-
-.action-btn.secondary {
-  background: transparent;
-  color: #F7C843;
-}
-
-.action-btn.secondary:hover {
-  background: #F7C843;
-  color: #2E2E2E;
-}
-
-.action-btn.danger {
-  background: transparent;
-  color: #dc3545;
-  border-color: #dc3545;
-}
-
-.action-btn.danger:hover {
-  background: #dc3545;
-  color: white;
-}
-
-.bookmark-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
-}
-
-.tag {
-  padding: 0.25rem 0.5rem;
-  background: #EDEAE3;
-  color: #666666;
-  border-radius: 4px;
-  font-size: 0.75rem;
-  font-weight: 500;
-}
-
-@media (max-width: 768px) {
-  .profile-container {
-    padding: 1rem;
-  }
-
-  .profile-header {
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-    gap: 1.5rem;
-  }
-
-  .user-stats {
-    justify-content: center;
-    flex-wrap: wrap;
-  }
-
-  .tabs {
-    flex-direction: column;
-  }
-
-  .card-header {
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-
-  .card-meta {
-    margin-left: 0;
-  }
-
-  .card-footer {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .card-actions {
-    width: 100%;
-    justify-content: flex-start;
-  }
-
-  .badges-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .impact-stats {
-    grid-template-columns: 1fr;
-    gap: 1.5rem;
-  }
-
-  .user-stats {
-    gap: 1rem;
-  }
-}
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 2rem;
+      background-color: #FDFCF9;
+      min-height: 100vh;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    .loading-state,
+    .error-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 400px;
+      text-align: center;
+    }
+
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 4px solid #EDEAE3;
+      border-top: 4px solid #F7C843;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-bottom: 1rem;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .profile-header {
+      display: flex;
+      gap: 2rem;
+      margin-bottom: 2rem;
+      background: #ffffff;
+      padding: 2rem;
+      border-radius: 16px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+      border: 1px solid #EDEAE3;
+    }
+
+    .avatar-section {
+      flex-shrink: 0;
+      position: relative;
+    }
+
+    .avatar-container {
+      position: relative;
+      cursor: pointer;
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      overflow: hidden;
+      transition: all 0.2s ease;
+    }
+
+    .avatar {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border: 3px solid #EDEAE3;
+    }
+
+    .level-badge {
+      position: absolute;
+      bottom: -5px;
+      right: -5px;
+      width: 36px;
+      height: 36px;
+      background: linear-gradient(135deg, #F7C843, #EDEAE3);
+      border: 3px solid white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 2px 8px rgba(247, 200, 67, 0.3);
+    }
+
+    .level-number {
+      color: #2E2E2E;
+      font-weight: 700;
+      font-size: 0.875rem;
+    }
+
+    .profile-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .name-section {
+      margin-bottom: 1rem;
+    }
+
+    .user-name {
+      font-size: 2rem;
+      font-weight: 700;
+      color: #2E2E2E;
+      margin: 0;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      transition: color 0.2s ease;
+    }
+
+    .user-name:hover {
+      color: #F7C843;
+    }
+
+    .edit-icon {
+      font-size: 1rem;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+    }
+
+    .user-name:hover .edit-icon,
+    .user-bio:hover .edit-icon {
+      opacity: 1;
+    }
+
+    .streak-section {
+      margin-bottom: 1rem;
+    }
+
+    .streak-indicator {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: linear-gradient(135deg, #F7C843, #EDEAE3);
+      color: #2E2E2E;
+      padding: 0.5rem 1rem;
+      border-radius: 20px;
+      font-size: 0.875rem;
+      font-weight: 600;
+      box-shadow: 0 2px 8px rgba(247, 200, 67, 0.2);
+      margin-bottom: 0.5rem;
+    }
+
+    .streak-info {
+      color: #666;
+      font-size: 0.75rem;
+    }
+
+    .xp-section {
+      margin-bottom: 1rem;
+    }
+
+    .xp-info {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.5rem;
+      font-size: 0.875rem;
+    }
+
+    .xp-current {
+      font-weight: 600;
+      color: #2E2E2E;
+    }
+
+    .xp-next {
+      color: #666666;
+    }
+
+    .xp-bar {
+      height: 8px;
+      background: #EDEAE3;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .xp-progress {
+      height: 100%;
+      background: linear-gradient(90deg, #F7C843, #EDEAE3);
+      border-radius: 4px;
+      transition: width 0.3s ease;
+    }
+
+    .follow-section {
+      margin-top: 1rem;
+    }
+
+    .follow-btn {
+      padding: 0.75rem 1.5rem;
+      border-radius: 8px;
+      font-size: 0.875rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border: 2px solid #F7C843;
+      background: #F7C843;
+      color: #2E2E2E;
+    }
+
+    .follow-btn:hover {
+      background: #EDEAE3;
+    }
+
+    .follow-btn.following {
+      background: transparent;
+      color: #F7C843;
+    }
+
+    .follow-btn.following:hover {
+      background: #EDEAE3;
+    }
+
+    .follow-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .name-edit,
+    .bio-edit {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .name-input {
+      font-size: 2rem;
+      font-weight: 700;
+      color: #2E2E2E;
+      border: 2px solid #F7C843;
+      border-radius: 8px;
+      padding: 0.5rem;
+      background: #FDFCF9;
+      font-family: inherit;
+      outline: none;
+    }
+
+    .bio-section {
+      margin-bottom: 1.5rem;
+    }
+
+    .user-bio {
+      font-size: 1.125rem;
+      color: #666666;
+      line-height: 1.6;
+      margin: 0;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: flex-start;
+      gap: 0.5rem;
+      transition: color 0.2s ease;
+    }
+
+    .user-bio:hover {
+      color: #2E2E2E;
+    }
+
+    .bio-textarea {
+      font-size: 1.125rem;
+      color: #2E2E2E;
+      border: 2px solid #F7C843;
+      border-radius: 8px;
+      padding: 0.75rem;
+      background: #FDFCF9;
+      font-family: inherit;
+      resize: vertical;
+      outline: none;
+      line-height: 1.6;
+      min-height: 80px;
+    }
+
+    .edit-actions {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .save-btn,
+    .cancel-btn,
+    .create-btn,
+    .retry-btn {
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      font-size: 0.875rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border: none;
+    }
+
+    .save-btn,
+    .create-btn,
+    .retry-btn {
+      background: #F7C843;
+      color: #2E2E2E;
+    }
+
+    .save-btn:hover,
+    .create-btn:hover,
+    .retry-btn:hover {
+      background: #EDEAE3;
+    }
+
+    .save-btn:disabled {
+      background: #666666;
+      cursor: not-allowed;
+    }
+
+    .cancel-btn {
+      background: #EDEAE3;
+      color: #666666;
+    }
+
+    .cancel-btn:hover {
+      background: #666666;
+      color: #fff;
+    }
+
+    .user-stats {
+      display: flex;
+      gap: 2rem;
+      flex-wrap: wrap;
+    }
+
+    .stat {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      min-width: 80px;
+    }
+
+    .stat-number {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #2E2E2E;
+    }
+
+    .stat-label {
+      font-size: 0.875rem;
+      color: #666666;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .motivation-banner {
+      background: linear-gradient(135deg, #F7C843, #EDEAE3);
+      border-radius: 16px;
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+      border: 1px solid #F7C843;
+    }
+
+    .motivation-content {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      color: #2E2E2E;
+      font-weight: 500;
+    }
+
+    .motivation-icon {
+      font-size: 1.25rem;
+    }
+
+    .badges-section,
+    .community-section {
+      background: #ffffff;
+      border-radius: 16px;
+      padding: 2rem;
+      margin-bottom: 2rem;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+      border: 1px solid #EDEAE3;
+    }
+
+    .section-title {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: #2E2E2E;
+      margin: 0 0 1.5rem 0;
+    }
+
+    .badges-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 1rem;
+    }
+
+    .badge-item {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 1rem;
+      border-radius: 12px;
+      background: #EDEAE3;
+      transition: all 0.2s ease;
+      opacity: 0.5;
+    }
+
+    .badge-item.unlocked {
+      background: linear-gradient(135deg, #F7C843, #EDEAE3);
+      opacity: 1;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(247, 200, 67, 0.2);
+    }
+
+    .badge-icon {
+      font-size: 1.5rem;
+      width: 40px;
+      text-align: center;
+    }
+
+    .badge-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .badge-name {
+      font-weight: 600;
+      color: #2E2E2E;
+      font-size: 0.875rem;
+    }
+
+    .badge-progress {
+      font-size: 0.75rem;
+      color: #666666;
+      margin-top: 0.25rem;
+    }
+
+    .impact-stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 2rem;
+    }
+
+    .impact-stat {
+      text-align: center;
+    }
+
+    .impact-number {
+      display: block;
+      font-size: 2rem;
+      font-weight: 700;
+      color: #F7C843;
+      margin-bottom: 0.5rem;
+    }
+
+    .impact-label {
+      color: #666666;
+      font-size: 0.875rem;
+      line-height: 1.4;
+    }
+
+    .tabs-container {
+      margin-bottom: 2rem;
+    }
+
+    .tabs {
+      display: flex;
+      background: #ffffff;
+      border-radius: 12px;
+      padding: 0.25rem;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+      border: 1px solid #EDEAE3;
+    }
+
+    .tab {
+      flex: 1;
+      padding: 0.875rem 1.5rem;
+      background: none;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: #666666;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .tab:hover {
+      color: #2E2E2E;
+      background: #EDEAE3;
+    }
+
+    .tab.active {
+      color: #2E2E2E;
+      background: #F7C843;
+    }
+
+    .content-container {
+      background: #ffffff;
+      border-radius: 16px;
+      padding: 2rem;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+      border: 1px solid #EDEAE3;
+    }
+
+    .content-section {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 3rem 1rem;
+      color: #666666;
+    }
+
+    .empty-state h3 {
+      font-size: 1.25rem;
+      margin: 0 0 0.5rem 0;
+      color: #2E2E2E;
+    }
+
+    .empty-state p {
+      margin: 0 0 1rem 0;
+      font-size: 1rem;
+    }
+
+    .empty-rewards {
+      margin-bottom: 1.5rem;
+    }
+
+    .reward-text {
+      display: inline-block;
+      background: linear-gradient(135deg, #F7C843, #EDEAE3);
+      color: #2E2E2E;
+      padding: 0.5rem 1rem;
+      border-radius: 20px;
+      font-size: 0.875rem;
+      font-weight: 500;
+    }
+
+    .content-card {
+      padding: 1.5rem;
+      border: 1px solid #EDEAE3;
+      border-radius: 12px;
+      background: #FDFCF9;
+      transition: all 0.2s ease;
+    }
+
+    .content-card:hover {
+      border-color: #F7C843;
+      box-shadow: 0 2px 8px rgba(247, 200, 67, 0.1);
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 0.75rem;
+    }
+
+    .card-title {
+      font-size: 1.125rem;
+      font-weight: 600;
+      color: #2E2E2E;
+      margin: 0;
+      line-height: 1.4;
+      flex: 1;
+    }
+
+    .card-meta {
+      font-size: 0.875rem;
+      color: #666666;
+      white-space: nowrap;
+      margin-left: 1rem;
+    }
+
+    .card-excerpt {
+      color: #666666;
+      line-height: 1.6;
+      margin: 0 0 1rem 0;
+    }
+
+    .bookmark-notes {
+      color: #666666;
+      line-height: 1.6;
+      margin: 0.5rem 0;
+      font-style: italic;
+      background: #EDEAE3;
+      padding: 0.75rem;
+      border-radius: 6px;
+    }
+
+    .card-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.875rem;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    .card-date {
+      color: #666666;
+    }
+
+    .card-stats {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .stat-item {
+      color: #666666;
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+    }
+
+    .card-actions {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    .action-btn {
+      padding: 0.375rem 0.875rem;
+      border-radius: 6px;
+      font-size: 0.875rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border: 1px solid #F7C843;
+      background: #F7C843;
+      color: #2E2E2E;
+    }
+
+    .action-btn:hover {
+      background: #EDEAE3;
+      border-color: #EDEAE3;
+    }
+
+    .action-btn.secondary {
+      background: transparent;
+      color: #F7C843;
+    }
+
+    .action-btn.secondary:hover {
+      background: #F7C843;
+      color: #2E2E2E;
+    }
+
+    .action-btn.danger {
+      background: transparent;
+      color: #dc3545;
+      border-color: #dc3545;
+    }
+
+    .action-btn.danger:hover {
+      background: #dc3545;
+      color: white;
+    }
+
+    .bookmark-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .tag {
+      padding: 0.25rem 0.5rem;
+      background: #EDEAE3;
+      color: #666666;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 500;
+    }
+
+    @media (max-width: 768px) {
+      .profile-container {
+        padding: 1rem;
+      }
+
+      .profile-header {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        gap: 1.5rem;
+      }
+
+      .user-stats {
+        justify-content: center;
+        flex-wrap: wrap;
+      }
+
+      .tabs {
+        flex-direction: column;
+      }
+
+      .card-header {
+        flex-direction: column;
+        gap: 0.5rem;
+      }
+
+      .card-meta {
+        margin-left: 0;
+      }
+
+      .card-footer {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .card-actions {
+        width: 100%;
+        justify-content: flex-start;
+      }
+
+      .badges-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .impact-stats {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+      }
+
+      .user-stats {
+        gap: 1rem;
+      }
+    }
   `]
 })
 export class ProfileComponent implements OnInit, OnDestroy {
@@ -1044,7 +1073,7 @@ export class ProfileComponent implements OnInit, OnDestroy {
   @ViewChild('nameInput') nameInput!: ElementRef;
   @ViewChild('bioInput') bioInput!: ElementRef;
 
-  currentUser = getAuth().currentUser; // or inject via AuthService
+  currentUser = getAuth().currentUser;
 
   // Component state
   userProfile: UserProfile | null = null;
@@ -1068,8 +1097,6 @@ export class ProfileComponent implements OnInit, OnDestroy {
   isFollowing = false;
   followLoading = false;
 
-  
-  
   // Default avatar
   defaultAvatar = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIwIiBoZWlnaHQ9IjEyMCIgdmlld0JveD0iMCAwIDEyMCAxMjAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSIxMjAiIGhlaWdodD0iMTIwIiByeD0iNjAiIGZpbGw9IiNlNmIxN2EiLz4KPHN2ZyB4PSIzMCIgeT0iMzAiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IndoaXRlIiBzdHJva2Utd2lkdGg9IjEuNSI+CjxwYXRoIGQ9Im0zIDkgOS0xIDktMW0tMSAyIDEwIDEwaDEwbC04LTEwbS0xLTEwSDhsLTggMTB2MTBsOC0xMVoiLz4KPC9zdmc+Cjwvc3ZnPgo=';
   
@@ -1079,123 +1106,141 @@ export class ProfileComponent implements OnInit, OnDestroy {
     private profileService: ProfileService,
     private route: ActivatedRoute,
     private viewsService: ViewsService,
-      private draftsService: DraftsService // 👈 add this
-
+    private voteService: VotesService,
+    private draftsService: DraftsService,
+    private router: Router
   ) {}
 
   ngOnInit() {
-  const currentUserId = sessionStorage.getItem('currentUserId') || this.currentUser?.uid || '';
+    const currentUserId = sessionStorage.getItem('currentUserId') || this.currentUser?.uid || '';
 
-  this.route.paramMap
-    .pipe(takeUntil(this.destroy$))
-    .subscribe(async paramMap => {
-      const uid = paramMap.get('id'); // /profile/:id
-      
-      // Set isOwnProfile BEFORE calling loadProfileData
-      this.isOwnProfile = !uid || uid === currentUserId;
-      
-      const targetUid = uid || currentUserId;
-      if (!targetUid) {
-        this.userProfile = null;
-        this.loading = false;
-        return;
-      }
+    this.route.paramMap
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(async paramMap => {
+        const uid = paramMap.get('id');
+        
+        // Set isOwnProfile BEFORE calling loadProfileData
+        this.isOwnProfile = !uid || uid === currentUserId;
+        
+        const targetUid = uid || currentUserId;
+        if (!targetUid) {
+          this.userProfile = null;
+          this.loading = false;
+          return;
+        }
 
-      // Set default tab based on profile type
-      if (!this.isOwnProfile && this.activeTab !== 'articles') {
-        this.activeTab = 'articles'; // Default to articles for other users
-      }
+        // Set default tab based on profile type
+        if (!this.isOwnProfile && this.activeTab !== 'articles') {
+          this.activeTab = 'articles'; // Default to articles for other users
+        }
 
-      await this.loadProfileData(targetUid);
-
-     
-    });
-}
+        await this.loadProfileData(targetUid);
+      });
+  }
 
   ngOnDestroy() {
     this.destroy$.next();
     this.destroy$.complete();
   }
 
- async loadProfileData(uid?: string) {
-  this.loading = true;
-  try {
-    // Fix: Don't fall back to current user when viewing other profiles
-    const targetUid =
-      uid ||
-      sessionStorage.getItem('currentUserId') ||
-      this.currentUser?.uid ||
-      '';
+  async loadProfileData(uid?: string) {
+    this.loading = true;
+    try {
+      // Fix: Don't fall back to current user when viewing other profiles
+      const targetUid =
+        uid ||
+        sessionStorage.getItem('currentUserId') ||
+        this.currentUser?.uid ||
+        '';
 
-    if (!targetUid) {
-      this.userProfile = null;
-      this.loading = false;
-      return;
-    }
+      if (!targetUid) {
+        this.userProfile = null;
+        this.loading = false;
+        return;
+      }
 
-    const profile = await this.profileService.getUserProfile(targetUid);
+      const profile = await this.profileService.getUserProfile(targetUid);
 
-    if (!profile) {
-      this.userProfile = null;
-      this.loading = false;
-      return;
-    }
+      if (!profile) {
+        this.userProfile = null;
+        this.loading = false;
+        return;
+      }
 
-    // Initialize stats if missing
-    if (!profile?.stats) {
-      profile.stats = {
-        storiesPublished: 0,
-        draftsCount: 0,
-        bookmarksCount: 0,
-        totalViews: 0,
-        totalVotes: 0,
-        followersCount: 0,
-        followingCount: 0,
-      };
-    }
+      // Initialize stats if missing
+      if (!profile?.stats) {
+        profile.stats = {
+          storiesPublished: 0,
+          draftsCount: 0,
+          bookmarksCount: 0,
+          totalViews: 0,
+          totalVotes: 0,
+          followersCount: 0,
+          followingCount: 0,
+        };
+      }
 
-    this.userProfile = profile;
-    this.initializeBadges();
+      this.userProfile = profile;
+      this.initializeBadges();
 
-    // --- FIX: use tuple type for predictable results ---
-    let loadPromises: [
-      Promise<Draft[]>,
-      Promise<Story[]>,
-      Promise<Bookmark[]>
-    ];
-
-    if (this.isOwnProfile) {
-      // Only load private data (drafts, bookmarks) for own profile
-      loadPromises = [
-        this.draftsService.getDraftsByAuthor(targetUid, 20),
-        this.profileService.getUserPublishedStories(targetUid),
-        this.profileService.getUserBookmarks(targetUid),
+      // Load appropriate data based on profile ownership
+      let loadPromises: [
+        Promise<Draft[]>,
+        Promise<Story[]>,
+        Promise<Bookmark[]>
       ];
-    } else {
-      // For other users, only load public stories
-      loadPromises = [
-        Promise.resolve([] as Draft[]),
-        this.profileService.getUserPublishedStories(targetUid),
-        Promise.resolve([] as Bookmark[]),
-      ];
+
+      if (this.isOwnProfile) {
+        // Only load private data (drafts, bookmarks) for own profile
+        loadPromises = [
+          this.draftsService.getDraftsByAuthor(targetUid, 20),
+          this.profileService.getUserPublishedStories(targetUid),
+          this.profileService.getUserBookmarks(targetUid),
+        ];
+      } else {
+        // For other users, only load public stories
+        loadPromises = [
+          Promise.resolve([] as Draft[]),
+          this.profileService.getUserPublishedStories(targetUid),
+          Promise.resolve([] as Bookmark[]),
+        ];
+      }
+
+      const [drafts, stories, bookmarks] = await Promise.all(loadPromises);
+
+      this.drafts = drafts;
+      this.stories = stories;
+      this.bookmarks = bookmarks;
+
+      // Load view counts for stories
+      await this.loadStoryViewCounts();
+      // Update badge progress with available data
+      this.updateBadgeProgress();
+
+      // Check if following (for other users' profiles)
+      if (!this.isOwnProfile && this.currentUser) {
+        this.isFollowing = await this.profileService.isFollowing(this.currentUser.uid, targetUid);
+      }
+    } catch (e) {
+      console.error('Error loading profile:', e);
+      this.userProfile = null;
+    } finally {
+      this.loading = false;
     }
-
-    const [drafts, stories, bookmarks] = await Promise.all(loadPromises);
-
-    this.drafts = drafts;
-    this.stories = stories;
-    this.bookmarks = bookmarks;
-
-    // Update badge progress with available data
-    this.updateBadgeProgress();
-  } catch (e) {
-    console.error('Error loading profile:', e);
-    this.userProfile = null;
-  } finally {
-    this.loading = false;
   }
-}
 
+  async loadStoryViewCounts() {
+    for (const story of this.stories) {
+      try {
+        story.readCount = await this.viewsService.getViewCount(story.id);
+        
+        story.voteCount = await this.voteService.countVotes(story.id);
+      } catch (error) {
+        console.error('Error loading view count for story:', story.id, error);
+        story.readCount = 0;
+      }
+    }
+  }
 
   async toggleFollow() {
     if (!this.currentUser || !this.userProfile || this.isOwnProfile) return;
@@ -1208,14 +1253,12 @@ export class ProfileComponent implements OnInit, OnDestroy {
       if (this.isFollowing) {
         await this.profileService.unfollowUser(me, them);
         this.userProfile.stats.followersCount--;
-        console.log(this.userProfile.stats)
         this.isFollowing = false;
       } else {
         await this.profileService.followUser(me, them);
         this.userProfile.stats.followersCount++;
         this.isFollowing = true;
       }
-      // Refresh counts after change
     } catch (error) {
       console.error('Error toggling follow:', error);
     } finally {
@@ -1223,8 +1266,53 @@ export class ProfileComponent implements OnInit, OnDestroy {
     }
   }
 
+  // Streak tracking methods
+  async updateWritingStreak() {
+    if (!this.currentUser || !this.isOwnProfile) return;
+    
+    try {
+      const today = new Date().toDateString();
+      const lastWriteDate = this.userProfile?.lastWriteDate 
+        ? new Date(this.userProfile.lastWriteDate).toDateString()
+        : null;
 
-  
+      // If user wrote today, no need to update
+      if (lastWriteDate === today) return;
+
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yesterdayString = yesterday.toDateString();
+
+      let newStreak = 1;
+      
+      // If last write was yesterday, continue streak
+      if (lastWriteDate === yesterdayString) {
+        newStreak = (this.userProfile?.writingStreak || 0) + 1;
+      }
+      
+      // Update streak in profile
+      if (this.currentUser) {
+        await this.profileService.updateUserProfile(this.currentUser.uid, {
+          writingStreak: newStreak,
+          lastWriteDate: new Date().toISOString()
+        });
+      }
+
+      // Update local profile
+      if (this.userProfile) {
+        this.userProfile.writingStreak = newStreak;
+        this.userProfile.lastWriteDate = new Date().toISOString();
+      }
+
+      // Award XP for maintaining streak
+      if (newStreak % 7 === 0) {
+        await this.awardXP(50, `Maintained ${newStreak}-day writing streak`);
+      }
+    } catch (error) {
+      console.error('Error updating writing streak:', error);
+    }
+  }
+
   // Gamification methods
   initializeBadges() {
     this.badges = [
@@ -1295,9 +1383,8 @@ export class ProfileComponent implements OnInit, OnDestroy {
 
     const stats = this.userProfile.stats || {};
     const totalWords = this.calculateTotalWords();
-    console.log(totalWords)
     const totalVotes = this.calculateTotalVotes();
-    console.log(this.drafts.length)
+    const totalViews = this.calculateTotalViews();
 
     // Update badge progress
     this.badges.forEach(badge => {
@@ -1332,21 +1419,25 @@ export class ProfileComponent implements OnInit, OnDestroy {
     });
   }
 
-calculateTotalWords(): number {
-  return [...this.drafts, ...this.stories].reduce((total, item) => {
-    const count = item.wordCount 
-      ? Number(item.wordCount) 
-      : (item.content ? item.content.trim().split(/\s+/).length : 0);
+  calculateTotalWords(): number {
+    return [...this.drafts, ...this.stories].reduce((total, item) => {
+      const count = item.wordCount 
+        ? Number(item.wordCount) 
+        : (item.content ? item.content.trim().split(/\s+/).length : 0);
 
-    return total + count;
-  }, 0);
-}
-
-
+      return total + count;
+    }, 0);
+  }
 
   calculateTotalVotes(): number {
     return this.stories.reduce((total, story) => {
       return total + (story.voteCount || 0);
+    }, 0);
+  }
+
+  calculateTotalViews(): number {
+    return this.stories.reduce((total, story) => {
+      return total + (story.readCount || 0);
     }, 0);
   }
 
@@ -1401,11 +1492,11 @@ calculateTotalWords(): number {
     }
 
     // General encouragement based on activity
-    if (stats.draftsCount === 0) {
+    if (this.drafts.length === 0) {
       return "Ready to start your writing journey? Create your first draft!";
     }
 
-    if (stats.storiesPublished === 0 && (stats.draftsCount || 0) > 0) {
+    if (this.stories.length === 0 && this.drafts.length > 0) {
       return "You have drafts ready! Publish your first story to earn 25 XP.";
     }
 
@@ -1416,26 +1507,17 @@ calculateTotalWords(): number {
     return '';
   }
 
-  async loadViewCount(storyId: string): Promise<number> {
-  try {
-    return await this.viewsService.getViewCount(storyId);
-  } catch (error) {
-    console.error('Error loading view count:', error);
-    return 0; // Return default value on error
-  }
-}
-
   formatNumber(num: number | null | undefined): string {
-  if (num === null || num === undefined) return "0";
+    if (num === null || num === undefined) return "0";
 
-  if (num >= 1_000_000) {
-    return (num / 1_000_000).toFixed(1) + "M";
+    if (num >= 1_000_000) {
+      return (num / 1_000_000).toFixed(1) + "M";
+    }
+    if (num >= 1_000) {
+      return (num / 1_000).toFixed(1) + "K";
+    }
+    return num.toString();
   }
-  if (num >= 1_000) {
-    return (num / 1_000).toFixed(1) + "K";
-  }
-  return num.toString();
-}
 
   // Follow system methods
   
@@ -1460,7 +1542,7 @@ calculateTotalWords(): number {
     
     this.savingProfile = true;
     try {
-        if (this.currentUser) {   // 👈 check null
+        if (this.currentUser) {
             await this.profileService.createOrUpdateProfile(this.currentUser, {
               displayName: this.tempName.trim()
             });
@@ -1519,21 +1601,34 @@ calculateTotalWords(): number {
   }
 
   // Draft methods
-  createNewDraft() {
-    // Navigate to draft creation or open modal
-    console.log('Create new draft');
+  async createNewDraft() {
+    try {
+      // Navigate to draft creation
+      this.router.navigate(['/editor']);
+      
+      // Award XP for creating a draft
+      await this.awardXP(10, 'Created a new draft');
+      await this.updateWritingStreak();
+    } catch (error) {
+      console.error('Error creating new draft:', error);
+    }
   }
 
   editDraft(draft: Draft) {
     // Navigate to draft editor
-    console.log('Edit draft:', draft.id);
+    this.router.navigate(['/editor', draft.id]);
   }
 
   async publishDraft(draft: Draft) {
     try {
       await this.profileService.publishDraft(draft.id);
+      
       // Award XP for publishing
       await this.awardXP(25, 'Published a story');
+      
+      // Update writing streak
+      await this.updateWritingStreak();
+      
       // Reload data to reflect changes
       this.loadProfileData();
     } catch (error) {
@@ -1545,8 +1640,7 @@ calculateTotalWords(): number {
     if (!confirm('Are you sure you want to delete this draft?')) return;
     
     try {
-      await this.draftsService.deleteDraft(draft.id); // ✅ simpler
-
+      await this.draftsService.deleteDraft(draft.id);
       this.drafts = this.drafts.filter(d => d.id !== draft.id);
     } catch (error) {
       console.error('Error deleting draft:', error);
@@ -1557,9 +1651,9 @@ calculateTotalWords(): number {
   readBookmark(bookmark: Bookmark) {
     if (bookmark.storyUrl) {
       window.open(bookmark.storyUrl, '_blank');
-    } else {
+    } else if (bookmark.storyId) {
       // Navigate to internal story
-      console.log('Navigate to story:', bookmark.storyId);
+      this.router.navigate(['/story', bookmark.storyId]);
     }
   }
 
@@ -1574,6 +1668,9 @@ calculateTotalWords(): number {
     try {
       await this.profileService.deleteBookmark(bookmark.id);
       this.bookmarks = this.bookmarks.filter(b => b.id !== bookmark.id);
+      
+      // Award XP for bookmarking activity
+      await this.awardXP(5, 'Removed a bookmark');
     } catch (error) {
       console.error('Error removing bookmark:', error);
     }
@@ -1608,6 +1705,9 @@ calculateTotalWords(): number {
   showLevelUpNotification(newLevel: number) {
     // This could trigger a modal, toast, or other notification
     console.log(`🎉 Level up! You're now level ${newLevel}!`);
+    
+    // For a real implementation, you might use:
+    // this.notificationService.show(`🎉 Level up! You're now level ${newLevel}!`, 'success');
   }
 
   // Utility methods

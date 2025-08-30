@@ -88,6 +88,15 @@ import { user } from '@angular/fire/auth';
         </button>
       </form>
 
+
+<button
+  type="button"
+  (click)="onGoogleRegister()"
+  [disabled]="isLoading"
+  class="google-button">
+  <span class="google-icon">🔑</span> Register with Google
+</button>
+
       <p class="login-text">
         Already have an account? <a href="/login">Login</a>
       </p>
@@ -298,6 +307,23 @@ export class RegisterComponent {
       this.isLoading = false;
     }
   }
+
+
+// Implement onGoogleRegister in RegisterComponent:
+async onGoogleRegister() {
+  this.isLoading = true;
+  this.errorMessage = '';
+  try {
+    await this.authService.googleLogin();
+    console.log('Google registration successful!');
+    this.router.navigate(['/stories']); // Adjust as needed
+  } catch (error: any) {
+    console.error('Google registration error:', error);
+    this.errorMessage = 'Google registration failed. Please try again.';
+  } finally {
+    this.isLoading = false;
+  }
+}
 
 
   private getErrorMessage(errorCode: string): string {

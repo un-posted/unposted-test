@@ -68,22 +68,36 @@ import { Bookmark, CreateBookmarkData } from '../models/bookmark';
     <div class="feed-content">
       
       <!-- Quick Filters -->
-      <div class="quick-filters" *ngIf="!isLoading">
-        <button 
-          class="filter-tag" 
-          [class.active]="selectedCategory === ''"
-          (click)="selectCategory('')">
-          All Stories
-        </button>
-        <button 
-          *ngFor="let category of availableCategories.slice(0, 6)" 
-          class="filter-tag"
-          [class.active]="selectedCategory === category"
-          (click)="selectCategory(category)">
-          {{ category }}
-          <span class="tag-count">{{ getCategoryCount(category) }}</span>
-        </button>
-      </div>
+<div class="quick-filters-container" *ngIf="!isLoading">
+  <div class="quick-filters-slider">
+    <button 
+      class="filter-tag" 
+      [class.active]="selectedCategory === ''"
+      (click)="selectCategory('')">
+      All Stories
+    </button>
+    <button 
+      *ngFor="let category of availableCategories.slice(0, 6)" 
+      class="filter-tag"
+      [class.active]="selectedCategory === category"
+      (click)="selectCategory(category)">
+      {{ category }}
+      <span class="tag-count">{{ getCategoryCount(category) }}</span>
+    </button>
+  </div>
+  
+  <!-- Navigation arrows for slider -->
+  <button class="slider-nav prev" (click)="scrollSlider(-1)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+      <polyline points="15,18 9,12 15,6"></polyline>
+    </svg>
+  </button>
+  <button class="slider-nav next" (click)="scrollSlider(1)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+      <polyline points="9,6 15,12 9,18"></polyline>
+    </svg>
+  </button>
+</div>
 
       <!-- Loading State -->
       <div *ngIf="isLoading" class="loading-state">
@@ -107,11 +121,10 @@ import { Bookmark, CreateBookmarkData } from '../models/bookmark';
 
       <!-- Stories Feed -->
       <div class="stories-feed" *ngIf="!isLoading">
-        <article
-          *ngFor="let story of paginatedStories; trackBy: trackByStoryId"
-          class="story-card"
-          
-        >
+  <article
+    *ngFor="let story of filteredStories; trackBy: trackByStoryId"
+    class="story-card"
+  >
           <!-- Story Header -->
           <div class="story-header">
             <div class="author-info">
@@ -208,13 +221,13 @@ import { Bookmark, CreateBookmarkData } from '../models/bookmark';
 
       <!-- Load More -->
       <div class="load-more-container" *ngIf="!isLoading && hasMoreStories && filteredStories.length > 0">
-        <button class="load-more-btn" (click)="loadMoreStories()" [disabled]="isLoadingMore">
-          <span *ngIf="!isLoadingMore">Show More Stories</span>
-          <div *ngIf="isLoadingMore" class="loading-dots">
-            <span></span><span></span><span></span>
-          </div>
-        </button>
-      </div>
+  <button class="load-more-btn" (click)="loadMoreStories()" [disabled]="isLoadingMore">
+    <span *ngIf="!isLoadingMore">Show More Stories</span>
+    <div *ngIf="isLoadingMore" class="loading-dots">
+      <span></span><span></span><span></span>
+    </div>
+  </button>
+</div>
     </div>
   </main>
 
@@ -450,14 +463,82 @@ import { Bookmark, CreateBookmarkData } from '../models/bookmark';
     }
 
     /* Quick Filters */
-    .quick-filters {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      flex-wrap: wrap;
-      padding-bottom: 1rem;
-    }
+    /* Quick Filters Slider */
+.quick-filters-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  padding: 0 2rem;
+  margin-bottom: 1rem;
+}
 
+.quick-filters-slider {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  overflow-x: auto;
+  scroll-behavior: smooth;
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE/Edge */
+  padding: 0.5rem 0;
+  width: 100%;
+}
+
+.quick-filters-slider::-webkit-scrollbar {
+  display: none; /* Chrome, Safari */
+}
+
+.slider-nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 1px solid #e6e1d7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 10;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.slider-nav:hover {
+  border-color: #f7c843;
+  background: rgba(230, 177, 122, 0.05);
+}
+
+.slider-nav svg {
+  width: 16px;
+  height: 16px;
+  color: #5c554d;
+}
+
+.slider-nav.prev {
+  left: 0;
+}
+
+.slider-nav.next {
+  right: 0;
+}
+
+/* Hide navigation buttons on mobile */
+@media (max-width: 768px) {
+  .slider-nav {
+    display: none;
+  }
+  
+  .quick-filters-container {
+    padding: 0;
+  }
+  
+  .quick-filters-slider {
+    padding: 0.5rem 1rem;
+  }
+}
     .filter-tag {
       padding: 0.5rem 1rem;
       border: 1px solid  #e6e1d7;
@@ -1032,15 +1113,15 @@ import { Bookmark, CreateBookmarkData } from '../models/bookmark';
         justify-content: center;
       }
 
-      .quick-filters {
-        justify-content: center;
-        gap: 0.5rem;
-      }
-
-      .filter-tag {
-        font-size: 0.75rem;
-        padding: 0.4rem 0.8rem;
-      }
+      .quick-filters-slider {
+    gap: 0.5rem;
+    padding-bottom: 0.5rem;
+  }
+  
+  .filter-tag {
+    flex-shrink: 0; /* Prevent buttons from shrinking */
+    white-space: nowrap; /* Keep text on one line */
+  }
 
     }
 
@@ -1249,48 +1330,6 @@ export class StoriesComponent implements OnInit {
     });
   }
 
-  async loadStories(append = false) {
-    try {
-      if (!append) {
-        this.isLoading = true;
-        this.errorMessage = '';
-      } else {
-        this.isLoadingMore = true;
-      }
-  
-      // Fetch stories
-      const loadedStories = await this.storiesService.getStories(20);
-      console.log(loadedStories)
-  
-      // Add voteCount to each story
-      const storiesWithVotes = await Promise.all(
-        loadedStories.map(async (story) => {
-          try {
-            const count = await this.votesService.countVotes(story.id);
-            const commentCount = await this.commentsService.countComments(story.id);
-            return { ...story, voteCount: count , commentCount: commentCount};
-          } catch (error) {
-            console.error(`Error loading vote count for story ${story.id}:`, error);
-            return { ...story, voteCount: 0, commentCount:0 };
-          }
-        })
-      );
-  
-      // Append or replace stories
-      this.stories = append ? [...this.stories, ...storiesWithVotes] : storiesWithVotes;
-  
-      // Update UI state
-      this.updateAvailableCategories();
-      this.hasMoreStories = loadedStories.length === 20;
-  
-    } catch (error) {
-      console.error('Error loading stories:', error);
-      this.errorMessage = 'Failed to load stories. Please try again later.';
-    } finally {
-      this.isLoading = false;
-      this.isLoadingMore = false;
-    }
-  }
   
 
   async loadMoreStories() {
@@ -1302,20 +1341,7 @@ export class StoriesComponent implements OnInit {
     const categories = new Set(this.stories.map(story => story.category));
     this.availableCategories = Array.from(categories).sort();
   }
-
-  // Event handlers
-  onSearchChange() {
-    this.currentPage = 1;
-    this.debounceSearch();
-  }
-
-  onFilterChange() {
-    this.currentPage = 1;
-  }
-
-  onSortChange() {
-    this.currentPage = 1;
-  }
+  
 
   private debounceTimeout?: number;
   private debounceSearch() {
@@ -1327,54 +1353,7 @@ export class StoriesComponent implements OnInit {
     }, 300);
   }
 
-  selectCategory(category: string) {
-    this.selectedCategory = category;
-    this.onFilterChange();
-  }
-
-  clearSearch() {
-    this.searchQuery = '';
-    this.onSearchChange();
-  }
-
-  clearAllFilters() {
-    this.searchQuery = '';
-    this.selectedCategory = '';
-    this.selectedLanguage = '';
-    this.sortType = 'newest';
-    this.currentPage = 1;
-  }
-
-  // Filtering and sorting
-  get filteredStories(): Story[] {
-    return this.stories
-      .filter(story => {
-        if (story.status !== StoryStatus.PUBLISHED) return false;
-
-        if (this.searchQuery) {
-          const q = this.searchQuery.toLowerCase();
-          const matchesSearch =
-            story.title.toLowerCase().includes(q) ||
-            story.content.toLowerCase().includes(q) ||
-            story.authorName.toLowerCase().includes(q) ||
-            (story.excerpt && story.excerpt.toLowerCase().includes(q)) ||
-            (story.tags && story.tags.some(tag => tag.toLowerCase().includes(q)));
-          
-          if (!matchesSearch) return false;
-        }
-
-        if (this.selectedCategory && story.category !== this.selectedCategory) {
-          return false;
-        }
-
-        if (this.selectedLanguage && story.language !== this.selectedLanguage) {
-          return false;
-        }
-
-        return true;
-      })
-      .sort((a, b) => this.sortStories(a, b));
-  }
+  
 
   private sortStories(a: Story, b: Story): number {
     switch (this.sortType) {
@@ -1401,11 +1380,7 @@ export class StoriesComponent implements OnInit {
     return 0;
   }
 
-  // Pagination
-  get paginatedStories(): Story[] {
-    const start = (this.currentPage - 1) * this.storiesPerPage;
-    return this.filteredStories.slice(start, start + this.storiesPerPage);
-  }
+  
 
   // Helper methods
   trackByStoryId(index: number, story: Story): string {
@@ -1566,4 +1541,141 @@ export class StoriesComponent implements OnInit {
       });
     }
   }
+
+  scrollSlider(direction: number) {
+  const slider = document.querySelector('.quick-filters-slider') as HTMLElement;
+  if (slider) {
+    const scrollAmount = 200; // Adjust as needed
+    slider.scrollBy({ left: direction * scrollAmount, behavior: 'smooth' });
+  }
+}
+
+private allStoriesLoaded = false;
+
+  async loadStories(append = false) {
+    try {
+      if (!append) {
+        this.isLoading = true;
+        this.errorMessage = '';
+        this.allStoriesLoaded = false;
+        // Reset service pagination when loading fresh data
+        this.storiesService.resetPagination();
+      } else {
+        this.isLoadingMore = true;
+      }
+  
+      // Fetch stories with pagination
+      const loadedStories = await this.storiesService.getStories(20, append);
+      
+      // If we get fewer stories than requested, we've reached the end
+      if (loadedStories.length < 20) {
+        this.allStoriesLoaded = true;
+      }
+  
+      // Add voteCount to each story
+      const storiesWithVotes = await Promise.all(
+        loadedStories.map(async (story) => {
+          try {
+            const count = await this.votesService.countVotes(story.id);
+            const commentCount = await this.commentsService.countComments(story.id);
+            return { ...story, voteCount: count , commentCount: commentCount};
+          } catch (error) {
+            console.error(`Error loading vote count for story ${story.id}:`, error);
+            return { ...story, voteCount: 0, commentCount:0 };
+          }
+        })
+      );
+  
+      // Append or replace stories
+      if (append) {
+        this.stories = [...this.stories, ...storiesWithVotes];
+      } else {
+        this.stories = storiesWithVotes;
+      }
+  
+      // Update UI state
+      this.updateAvailableCategories();
+      this.hasMoreStories = !this.allStoriesLoaded;
+  
+    } catch (error) {
+      console.error('Error loading stories:', error);
+      this.errorMessage = 'Failed to load stories. Please try again later.';
+    } finally {
+      this.isLoading = false;
+      this.isLoadingMore = false;
+    }
+  }
+
+  // Update the filteredStories getter to remove pagination logic
+  get filteredStories(): Story[] {
+    return this.stories
+      .filter(story => {
+        if (story.status !== StoryStatus.PUBLISHED) return false;
+
+        if (this.searchQuery) {
+          const q = this.searchQuery.toLowerCase();
+          const matchesSearch =
+            story.title.toLowerCase().includes(q) ||
+            story.content.toLowerCase().includes(q) ||
+            story.authorName.toLowerCase().includes(q) ||
+            (story.excerpt && story.excerpt.toLowerCase().includes(q)) ||
+            (story.tags && story.tags.some(tag => tag.toLowerCase().includes(q)));
+          
+          if (!matchesSearch) return false;
+        }
+
+        if (this.selectedCategory && story.category !== this.selectedCategory) {
+          return false;
+        }
+
+        if (this.selectedLanguage && story.language !== this.selectedLanguage) {
+          return false;
+        }
+
+        return true;
+      })
+      .sort((a, b) => this.sortStories(a, b));
+  }
+
+  // Update methods that change filters to reset pagination
+  onSearchChange() {
+    this.storiesService.resetPagination();
+    this.debounceSearch();
+  }
+
+  onFilterChange() {
+    this.storiesService.resetPagination();
+  }
+
+  onSortChange() {
+    this.storiesService.resetPagination();
+  }
+
+  // Update the template to show all filtered stories without pagination
+  get paginatedStories(): Story[] {
+    // Remove the pagination logic and return all filtered stories
+    // The "Load More" button will now load more stories from Firestore
+    return this.filteredStories;
+  }
+
+  clearSearch() {
+  this.searchQuery = '';
+  this.storiesService.resetPagination();
+  this.onSearchChange();
+}
+
+clearAllFilters() {
+  this.searchQuery = '';
+  this.selectedCategory = '';
+  this.selectedLanguage = '';
+  this.sortType = 'newest';
+  this.storiesService.resetPagination();
+  this.loadStories(); // Reload fresh data
+}
+
+selectCategory(category: string) {
+  this.selectedCategory = category;
+  this.storiesService.resetPagination();
+  this.onFilterChange();
+}
 }

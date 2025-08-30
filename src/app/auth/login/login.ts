@@ -53,6 +53,15 @@ import { AuthService } from '../auth'; // Adjust path as needed
         </button>
       </form>
 
+      <!-- Google Sign In Button -->
+      <button
+        type="button"
+        (click)="onGoogleLogin()"
+        [disabled]="isLoading"
+        class="google-button">
+        <span class="google-icon">🔑</span> Sign in with Google
+      </button>
+
       <p class="signup-text">
         Don't have an account? <a href="/register">Sign up</a>
       </p>
@@ -210,6 +219,24 @@ export class LoginComponent {
     } catch (error: any) {
       console.error('Login error:', error);
       this.errorMessage = this.getErrorMessage(error.code);
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
+
+  // Google login method
+  async onGoogleLogin() {
+    this.isLoading = true;
+    this.errorMessage = '';
+    try {
+      await this.authService.googleLogin();
+      console.log('Google login successful!');
+      // Redirect to the dashboard or home page
+      this.router.navigate(['/stories']);
+    } catch (error: any) {
+      console.error('Google login error:', error);
+      this.errorMessage = 'Google login failed. Please try again.';
     } finally {
       this.isLoading = false;
     }

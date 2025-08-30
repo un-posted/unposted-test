@@ -8,6 +8,7 @@ export interface UserProfile {
   bio?: string;
   location?: string;
   website?: string;
+  lastWriteDate: any;
   socialLinks?: {
     facebook?: string;
     instagram?: string;
