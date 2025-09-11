@@ -1,0 +1,230 @@
+<div class="unposted-feed">
+  <!-- Header -->
+  <header class="feed-header">
+    <div class="header-content">
+      <div class="brand">
+        <span class="moon-icon">🌙</span>
+        <!--<h1>Unposted</h1>-->
+        <span class="tagline">Where untold stories find their voice</span>
+      </div>
+      
+      <div class="header-actions">
+        <div class="search-container">
+          <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <circle cx="11" cy="11" r="8"></circle>
+            <path d="M21 21l-4.35-4.35"></path>
+          </svg>
+          <input
+            type="text"
+            placeholder="Search stories..."
+            [(ngModel)]="searchQuery"
+            (input)="onSearchChange()"
+            class="search-input"
+          />
+          <button *ngIf="searchQuery" class="search-clear" (click)="clearSearch()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+        
+        <!--<div class="filter-container">
+          <svg class="filter-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+          </svg>
+          <select [(ngModel)]="sortType" (change)="onSortChange()" class="filter-select">
+            <option value="newest">Latest</option>
+            <option value="popular">Trending</option>
+            <option value="az">Alphabetical</option>
+          </select>
+        </div>-->
+
+        <button class="write-btn" routerLink="/write">Write Story</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="feed-container">
+    <div class="feed-content">
+      
+      <!-- Quick Filters -->
+<div class="quick-filters-container" *ngIf="!isLoading">
+  <div class="quick-filters-slider">
+    <button 
+      class="filter-tag" 
+      [class.active]="selectedCategory === ''"
+      (click)="selectCategory('')">
+      All Stories
+    </button>
+    <button 
+      *ngFor="let category of availableCategories.slice(0, 6)" 
+      class="filter-tag"
+      [class.active]="selectedCategory === category"
+      (click)="selectCategory(category)">
+      {{ category }}
+      <span class="tag-count">{{ getCategoryCount(category) }}</span>
+    </button>
+  </div>
+  
+  <!-- Navigation arrows for slider -->
+  <button class="slider-nav prev" (click)="scrollSlider(-1)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+      <polyline points="15,18 9,12 15,6"></polyline>
+    </svg>
+  </button>
+  <button class="slider-nav next" (click)="scrollSlider(1)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+      <polyline points="9,6 15,12 9,18"></polyline>
+    </svg>
+  </button>
+</div>
+
+      <!-- Loading State -->
+      <div *ngIf="isLoading" class="loading-state">
+        <div class="story-skeleton" *ngFor="let i of [1,2,3,4,5]">
+          <div class="skeleton-header">
+            <div class="skeleton-avatar"></div>
+            <div class="skeleton-meta">
+              <div class="skeleton-line short"></div>
+              <div class="skeleton-line shorter"></div>
+            </div>
+          </div>
+          <div class="skeleton-content">
+            <div class="skeleton-line title"></div>
+            <div class="skeleton-line subtitle"></div>
+            <div class="skeleton-line"></div>
+            <div class="skeleton-line"></div>
+            <div class="skeleton-line medium"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stories Feed -->
+      <div class="stories-feed" *ngIf="!isLoading">
+  <article
+    *ngFor="let story of filteredStories; trackBy: trackByStoryId"
+    class="story-card"
+  >
+          <!-- Story Header -->
+          <div class="story-header">
+            <div class="author-info">
+              <div class="author-avatar"  [routerLink]="['/profile/', story.authorId]">
+                <img *ngIf="story.authorPhotoURL" [src]="story.authorPhotoURL" [alt]="story.authorName">
+                <span *ngIf="!story.authorPhotoURL">{{ getAuthorInitials(story.authorName) }}</span>
+              </div>
+              <div class="author-details">
+                <h3 class="author-name"  [routerLink]="['/profile/', story.authorId]">{{ story.authorName }}</h3>
+                <div class="story-meta">
+                  <span>{{ formatDate(story.createdAt) }}</span>
+                  <span class="separator">•</span>
+                  <span>{{ getEstimatedReadTime(story.content) }} min read</span>
+                  <span class="separator" *ngIf="story.language">•</span>
+                  <span class="language" *ngIf="story.language">{{ getLanguageLabel(story.language) }}</span>
+                </div>
+              </div>
+            </div>
+            
+            <button 
+            *ngIf="currentUser"
+              class="bookmark-btn" 
+              [class.bookmarked]="isBookmarked(story.id)"
+              (click)="toggleBookmark($event, story)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path d="M19 21l-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"></path>
+              </svg>
+            </button>
+          </div>
+
+          <!-- Story Content -->
+          <div class="story-content" [routerLink]="['/story/', story.id]">
+            <div class="story-title-section">
+              <span class="story-emoji">{{ story.emoji }}</span>
+              <h2 class="story-title">{{ story.title }}</h2>
+            </div>
+            
+            <p class="story-preview">
+              {{ getContentSnippet(story.content, 180) }}
+            </p>
+
+            <!-- Category Badge -->
+            <div class="story-category">
+              <span class="category-badge" [attr.data-category]="story.category">
+                {{ story.category }}
+              </span>
+            </div>
+          </div>
+
+          <!-- Story Actions -->
+          <div class="story-actions">
+            <div class="engagement-actions">
+              <button class="action-btn upvote" [disabled]="true">
+              <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 19V5M5 12l7-7 7 7"></path>
+              </svg>
+                <span>{{ formatCount(story.stats.voteCount || 0) }}</span>
+              </button>
+              
+              <button class="action-btn comment" [disabled]="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                </svg>
+                <span>{{ formatCount(story.stats.commentCount || 0) }}</span>
+              </button>
+              
+              <button class="action-btn share" (click)="shareStory($event, story)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                  <circle cx="18" cy="5" r="3"></circle>
+                  <circle cx="6" cy="12" r="3"></circle>
+                  <circle cx="18" cy="19" r="3"></circle>
+                  <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+                  <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+                </svg>
+                <span>Share</span>
+              </button>
+            </div>
+
+            <button class="read-more" [routerLink]="['/story/', story.id]">Read Story</button>
+          </div>
+        </article>
+      </div>
+
+      <!-- Empty State -->
+      <div *ngIf="!isLoading && filteredStories.length === 0" class="empty-state">
+        <div class="empty-illustration">
+          <span class="moon-icon large">🌙</span>
+        </div>
+        <h3>No stories found</h3>
+        <p>Try adjusting your search or explore different categories</p>
+        <button class="explore-btn" (click)="clearAllFilters()">
+          Explore All Stories
+        </button>
+
+      </div>
+
+      <!-- Load More -->
+      <div class="load-more-container" *ngIf="!isLoading && hasMoreStories && filteredStories.length > 0">
+  <button class="load-more-btn" (click)="loadMoreStories()" [disabled]="isLoadingMore">
+    <span *ngIf="!isLoadingMore">Show More Stories</span>
+    <div *ngIf="isLoadingMore" class="loading-dots">
+      <span></span><span></span><span></span>
+    </div>
+  </button>
+</div>
+    </div>
+  </main>
+
+  <!-- Error Toast -->
+  <div class="error-toast" [class.show]="errorMessage" *ngIf="errorMessage">
+    <div class="toast-content">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+        <circle cx="12" cy="12" r="10"></circle>
+        <line x1="15" y1="9" x2="9" y2="15"></line>
+        <line x1="9" y1="9" x2="15" y2="15"></line>
+      </svg>
+      <span>{{ errorMessage }}</span>
+    </div>
+    <button (click)="errorMessage = ''" class="toast-close">×</button>
+  </div>
+</div>

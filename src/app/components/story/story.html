@@ -1,0 +1,271 @@
+<div class="article-container" *ngIf="story">
+    <!-- Loading State -->
+    <div *ngIf="isLoading" class="loading-state">
+      <div class="modern-spinner"></div>
+      <p>Loading story...</p>
+    </div>
+
+    <!-- Article Content -->
+    <div *ngIf="!isLoading" class="fade-in">
+      <!-- Back Navigation-->
+      <button [routerLink]="['/stories']" class="back-button">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M19 12H5M12 19l-7-7 7-7"/>
+        </svg>
+        Back to Stories
+      </button>
+
+      <!-- Hero Section -->
+      <div class="hero-section">
+        <div class="article-emoji" [class.pulse]="!isLoading">{{ story.emoji || "📖" }}</div>
+        <div class="category-badge" [attr.data-category]="story.category">{{ story.category || "Story" }}</div>
+        <h1 class="article-title">{{ story.title }}</h1>
+
+        <!-- Enhanced Meta Information -->
+        <div class="article-meta">
+          <div class="meta-item">
+            <svg *ngIf="!story.authorPhotoURL"  width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+              <circle cx="12" cy="7" r="4"/>
+            </svg>
+            <img [routerLink]="['/profile/', story.authorId]" style="cursor: pointer;" *ngIf="story.authorPhotoURL" [src]="story.authorPhotoURL" [alt]="story.authorName">
+            <span  [routerLink]="['/profile/', story.authorId]" style="cursor: pointer;">{{ story.authorName || "Anonymous" }}</span>
+          </div>
+          <div class="meta-item">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"/>
+              <polyline points="12,6 12,12 16,14"/>
+            </svg>
+            <span>{{ story.createdAt ? formatDate(story.createdAt) : 'Recently' }}</span>
+          </div>
+          <div class="meta-item">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+            <span>{{ formatViewCount(story.stats.readCount) }} {{ story.stats.readCount === 1 ? 'view' : 'views' }}</span>
+          </div>
+          <div class="meta-item">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            </svg>
+            <span>{{ comments.length }} {{ comments.length === 1 ? 'comment' : 'comments' }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Article Content with Reading Progress -->
+      <div class="reading-progress" [style.width.%]="readingProgress"></div>
+      <div class="article-content" 
+           #articleContent
+           [ngClass]="{ 'rtl': isArabic(story.content) }"
+           (scroll)="updateReadingProgress()">
+        <div [innerHTML]="formatContent(story.content)"></div>
+      </div>
+
+      <!-- Enhanced Engagement Section -->
+      <div class="engagement-section">
+        <!-- Upvote System -->
+        <div class="upvote-card">
+          <div class="upvote-header">
+            <h3>💡 Found this thought-provoking?</h3>
+            <p *ngIf="!currentUser">Sign in to show your appreciation!</p>
+            <p *ngIf="currentUser">Help others discover great content!</p>
+          </div>
+          
+          <div class="vote-container">
+            <div class="vote-display">
+              <div class="vote-count">{{ story.stats.voteCount }}</div>
+              <div class="vote-label">{{ story.stats.voteCount === 1 ? 'upvote' : 'upvotes' }}</div>
+            </div>
+            
+            <button (click)="toggleUpvote()" 
+                    [disabled]="!currentUser || votingInProgress"
+                    [class.voted]="hasUpvoted" 
+                    [class.disabled]="!currentUser"
+                    class="modern-upvote-button">
+              <span *ngIf="votingInProgress" class="button-spinner"></span>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/>
+              </svg>
+              {{ hasUpvoted ? 'Upvoted' : 'Upvote' }}
+            </button>
+          </div>
+        </div>
+
+        <!-- Share Section -->
+        <div class="share-section">
+          <h4>Share this story</h4>
+          <div class="share-buttons">
+            
+            <button (click)="copyLink()" class="share-btn copy" [class.copied]="linkCopied">
+              <svg *ngIf="!linkCopied" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/>
+                <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/>
+              </svg>
+              <svg *ngIf="linkCopied" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M20 6L9 17l-5-5"/>
+              </svg>
+              {{ linkCopied ? 'Copied!' : 'Copy Link' }}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Enhanced Comments Section -->
+      <div class="comments-section">
+        <div class="comments-header">
+          <h2 class="comments-title">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            </svg>
+            Discussion
+          </h2>
+          <span class="comments-count">{{ comments.length }}</span>
+        </div>
+
+        <!-- Comments Filter/Sort -->
+        <div class="comments-controls" *ngIf="comments.length > 0">
+          <button [class.active]="sortOrder === 'newest'" 
+                  (click)="setSortOrder('newest')" 
+                  class="sort-btn">
+            Newest first
+          </button>
+          <button [class.active]="sortOrder === 'oldest'" 
+                  (click)="setSortOrder('oldest')" 
+                  class="sort-btn">
+            Oldest first
+          </button>
+        </div>
+
+        <!-- Loading Comments -->
+        <div *ngIf="commentsLoading" class="comments-loading">
+          <div class="modern-spinner small"></div>
+          <span>Loading comments...</span>
+        </div>
+
+        <!-- Empty Comments -->
+        <div *ngIf="!commentsLoading && comments.length === 0" class="comments-empty">
+          <div class="empty-icon">💭</div>
+          <h3>Start the conversation</h3>
+          <p>Be the first to share your thoughts on this story!</p>
+        </div>
+
+        <!-- Comment Items -->
+        <div class="comment-item" 
+             *ngFor="let comment of sortedComments; trackBy: trackComment; let i = index"
+             [style.animation-delay.ms]="i * 100">
+          <div class="comment-header">
+            <div class="comment-author">
+              <img [routerLink]="['/profile/', story.authorId]" style="cursor: pointer;" *ngIf="comment.userPhotoURL" [src]="comment.userPhotoURL" [alt]="story.authorName">
+              <div [routerLink]="['/profile/', story.authorId]" style="cursor: pointer;" *ngIf="!comment.userPhotoURL"  class="author-avatar"  [style.background]="getAvatarColor(comment.username)">
+                {{ getInitials(comment.username) }}
+              </div>
+              <div class="author-info">
+                <span class="author-name"[routerLink]="['/profile/', story.authorId]" style="cursor: pointer;">{{ comment.username || 'Anonymous' }}</span>
+                <div class="comment-date">{{ formatDate(comment.createdAt) }}</div>
+              </div>
+              <span *ngIf="comment.userId === story.authorId" class="author-badge">Author</span>
+            </div>
+            <div class="comment-actions">
+              <button *ngIf="canDeleteComment(comment)" 
+                      (click)="deleteComment(comment.id!)" 
+                      class="delete-btn"
+                      title="Delete comment">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="3,6 5,6 21,6"/>
+                  <path d="m19,6v14a2,2 0 0,1 -2,2H7a2,2 0 0,1 -2,-2V6m3,0V4a2,2 0 0,1 2,-2h4a2,2 0 0,1 2,2v2"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+          <div class="comment-content">{{ comment.content }}</div>
+        </div>
+      </div>
+
+      <!-- Enhanced Comment Form -->
+      <div class="comment-form-card">
+        <div *ngIf="!currentUser" class="auth-prompt">
+          <div class="auth-icon">🔐</div>
+          <h3>Join the Discussion</h3>
+          <p>Please <a routerLink="/login" class="auth-link">sign in</a> to share your thoughts and engage with the community.</p>
+        </div>
+
+        <div *ngIf="currentUser" class="comment-form">
+          <div class="form-header">
+            <img *ngIf="currentUser.photoURL" [src]="currentUser.photoURL" [alt]="story.authorName">
+            <div *ngIf="!currentUser.photoURL" class="user-avatar" [style.background]="getAvatarColor(currentUser.displayName)">
+              {{ getInitials(currentUser.displayName || currentUser.email) }}
+            </div>
+            <h3>Share your thoughts</h3>
+          </div>
+          
+          <div class="form-group">
+            <textarea 
+              [(ngModel)]="commentText" 
+              class="modern-textarea" 
+              placeholder="What did you think about this story? Share your perspective..."
+              maxlength="500" 
+              rows="4"
+              (input)="adjustTextareaHeight($event)"
+              required>
+            </textarea>
+            <div class="character-count" 
+                 [class.warning]="commentText && commentText.length > 450"
+                 [class.danger]="commentText && commentText.length >= 500">
+              {{ commentText?.length || 0 }} / 500
+            </div>
+          </div>
+          
+          <div class="form-actions">
+            <button (click)="clearComment()" 
+                    *ngIf="commentText?.trim()" 
+                    class="secondary-btn">
+              Cancel
+            </button>
+            <button (click)="addComment()" 
+                    [disabled]="!commentText?.trim() || commentSubmitting || (commentText?.length || 0) > 500"
+                    class="primary-btn">
+              <span *ngIf="commentSubmitting" class="button-spinner"></span>
+              <svg *ngIf="!commentSubmitting" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="22" y1="2" x2="11" y2="13"/>
+                <polygon points="22,2 15,22 11,13 2,9 22,2"/>
+              </svg>
+              {{ commentSubmitting ? 'Posting...' : 'Post Comment' }}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Success/Error Messages -->
+      <div *ngIf="successMessage" class="success-message fade-in">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+          <polyline points="22,4 12,14.01 9,11.01"/>
+        </svg>
+        {{ successMessage }}
+      </div>
+
+      <div *ngIf="errorMessage" class="error-message fade-in">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="15" y1="9" x2="9" y2="15"/>
+          <line x1="9" y1="9" x2="15" y2="15"/>
+        </svg>
+        {{ errorMessage }}
+      </div>
+    </div>
+  </div>
+
+  <!-- Story Not Found -->
+  <div *ngIf="!story && !isLoading" class="not-found">
+    <div class="not-found-icon">📚</div>
+    <h2>Story Not Found</h2>
+    <p>The story you're looking for doesn't exist or may have been removed.</p>
+    <button (click)="goBack()" class="primary-btn">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M19 12H5M12 19l-7-7 7-7"/>
+      </svg>
+      Back to Stories
+    </button>
+  </div>

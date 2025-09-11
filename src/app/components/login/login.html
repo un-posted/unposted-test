@@ -1,0 +1,17 @@
+<div class="login-container">
+  <h2 class="login-title">🔑 Login</h2>
+
+  <!-- Google Sign In Button -->
+  <button
+    type="button"
+    (click)="onGoogleLogin()"
+    [disabled]="isLoading"
+    class="google-button">
+    <img src="https://www.svgrepo.com/show/355037/google.svg" alt="Google Logo" class="google-icon"/>
+    <span>Sign in with Google</span>
+  </button>
+
+  <p class="signup-text">
+    Don’t have an account? <a href="/register">Sign up</a>
+  </p>
+</div>

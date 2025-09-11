@@ -1,0 +1,279 @@
+<!-- Desktop/Tablet Navbar -->
+<nav class="navbar desktop-navbar">
+  <a class="navbar-logo" routerLink="/">
+    <span>🌙</span>
+    <span>Unposted</span>
+  </a>
+  
+  <div class="navbar-right">        
+    <div class="nav-links">
+    </div>
+    
+    <!-- Notification Bell with Badge -->
+    <div *ngIf="user" class="notification-bell" 
+         [class.has-notifications]="hasUnreadNotifications" 
+         (click)="toggleNotifications()">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M18 8C18 6.4087 17.3679 4.88258 16.2426 3.75736C15.1174 2.63214 13.5913 2 12 2C10.4087 2 8.88258 2.63214 7.75736 3.75736C6.63214 4.88258 6 6.4087 6 8C6 15 3 17 3 17H21C21 17 18 15 18 8Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M13.73 21C13.5542 21.3031 13.3019 21.5547 12.9982 21.7295C12.6946 21.9044 12.3504 21.9965 12 21.9965C11.6496 21.9965 11.3054 21.9044 11.0018 21.7295C10.6981 21.5547 10.4458 21.3031 10.27 21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <!-- Notification Badge -->
+      <span *ngIf="hasUnreadNotifications" class="notification-badge">
+        {{ getBadgeDisplay() }}
+      </span>
+    </div>
+
+    <!-- Notification Dropdown -->
+    <div class="notification-dropdown" [class.active]="notificationsOpen">
+      <div class="notification-header">
+        <h3>Notifications</h3>
+        <button class="mark-all-read" 
+                *ngIf="hasUnreadNotifications" 
+                (click)="markNotificationsAsRead()">
+          Mark all as read
+        </button>
+      </div>
+      
+      <div class="notification-list" *ngIf="notifications.length > 0; else noNotifications">
+        <div class="notification-item" 
+             *ngFor="let notification of notifications" 
+             [class.unread]="!notification.isRead"
+             [class.read]="notification.isRead"
+             (click)="onNotificationClick(notification)">
+          
+          <div class="notification-icon" [ngClass]="'icon-' + notification.type">
+            <span *ngIf="notification.type === 'like'">❤️</span>
+            <span *ngIf="notification.type === 'comment'">💬</span>
+            <span *ngIf="notification.type === 'follow'">👤</span>
+            <span *ngIf="notification.type === 'story_published'">✅</span>
+            
+          </div>
+          
+          <div class="notification-content">
+            <div class="notification-title">{{ notification.title }}</div>
+            <div class="notification-message">{{ notification.message }}</div>
+            <div class="notification-time">{{ getTimeAgo(notification.createdAt) }}</div>
+          </div>
+          
+          <div class="notification-status" *ngIf="!notification.isRead">
+            <div class="unread-dot"></div>
+          </div>
+        </div>
+      </div>
+      
+      <ng-template #noNotifications>
+        <div class="no-notifications">
+          <div class="no-notifications-icon">🔔</div>
+          <div class="no-notifications-text">No notifications yet</div>
+        </div>
+      </ng-template>
+      
+      <div class="notification-footer">
+        <a routerLink="/notifications" (click)="closeNotifications()">View all notifications</a>
+      </div>
+    </div>
+
+    <!-- Authentication buttons when not logged in -->
+    <div class="navbar-buttons" *ngIf="!user">
+      <a routerLink="/login" class="auth-btn">Sign In</a>
+      <a routerLink="/register" class="auth-btn signup">Sign Up</a>
+    </div>
+
+    <!-- User profile when logged in -->
+    <div class="navbar-buttons logged-in" *ngIf="user">
+      <div class="user-profile" (click)="toggleUserMenu()">
+        <div class="user-avatar">
+          <img *ngIf="user?.photoURL; else initials" [src]="user?.photoURL" alt="User Avatar" />
+          <ng-template #initials>{{ getUserInitial() }}</ng-template>
+        </div>
+        <span class="username">{{ getUserName() }}</span>
+        <span class="dropdown-arrow" [class.rotated]="userMenuOpen">▼</span>
+      </div>
+
+      <!-- User dropdown menu -->
+      <div class="user-menu" [class.active]="userMenuOpen">
+        <div class="user-info">
+          <img *ngIf="user?.photoURL; else initials" [src]="user?.photoURL" alt="User Avatar" />
+          <ng-template #initials>{{ getUserInitial() }}</ng-template>
+          <div>
+            <div class="user-display-name">{{ getUserName() }}</div>
+            <div class="user-email">{{ user?.email }}</div>
+          </div>
+        </div>
+        <hr>
+        <a routerLink="/profile" (click)="closeUserMenu()">
+          <span>👤</span> Profile
+        </a>
+        <a routerLink="/my-stories" (click)="closeUserMenu()">
+          <span>📖</span> My Stories
+        </a>
+        <a routerLink="/settings" (click)="closeUserMenu()">
+          <span>⚙️</span> Settings
+        </a>
+        <hr>
+        <button class="logout-btn" (click)="logout()">
+          <span>🚪</span> Sign Out
+        </button>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<!-- Mobile Bottom Navigation -->
+<nav class="bottom-nav mobile-navbar">
+  <div class="bottom-nav-container">
+    <!-- Home/Stories -->
+    <a routerLink="/stories" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}" class="nav-item">
+      <div class="nav-icon">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M3 9L12 2L21 9V20C21 20.5304 20.7893 21.0391 20.4142 21.4142C20.0391 21.7893 19.5304 22 19 22H5C4.46957 22 3.96086 21.7893 3.58579 21.4142C3.21071 21.0391 3 20.5304 3 20V9Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M9 22V12H15V22" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <span class="nav-label">Home</span>
+    </a>
+
+    <!-- Write -->
+    <a routerLink="/write" routerLinkActive="active" class="nav-item">
+      <div class="nav-icon">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M11 4H4C3.46957 4 2.96086 4.21071 2.58579 4.58579C2.21071 4.96086 2 5.46957 2 6V20C2 20.5304 2.21071 21.0391 2.58579 21.4142C2.96086 21.7893 3.46957 22 4 22H18C18.5304 22 19.0391 21.7893 19.4142 21.4142C19.7893 21.0391 20 20.5304 20 20V13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M18.5 2.49998C18.8978 2.10216 19.4374 1.87866 20 1.87866C20.5626 1.87866 21.1022 2.10216 21.5 2.49998C21.8978 2.89781 22.1213 3.43737 22.1213 3.99998C22.1213 4.56259 21.8978 5.10216 21.5 5.49998L12 15L8 16L9 12L18.5 2.49998Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <span class="nav-label">Write</span>
+    </a>
+
+   <div *ngIf="user" routerLink="/notifications" routerLinkActive="active" class="nav-item notification-bell" 
+     [class.has-notifications]="hasUnreadNotifications" >
+  <div class="nav-icon">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M18 8C18 6.4087 17.3679 4.88258 16.2426 3.75736C15.1174 2.63214 13.5913 2 12 2C10.4087 2 8.88258 2.63214 7.75736 3.75736C6.63214 4.88258 6 6.4087 6 8C6 15 3 17 3 17H21C21 17 18 15 18 8Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M13.73 21C13.5542 21.3031 13.3019 21.5547 12.9982 21.7295C12.6946 21.9044 12.3504 21.9965 12 21.9965C11.6496 21.9965 11.3054 21.9044 11.0018 21.7295C10.6981 21.5547 10.4458 21.3031 10.27 21" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+    <span *ngIf="hasUnreadNotifications" class="mobile-notification-badge">
+      {{ getBadgeDisplay() }}
+    </span>
+  </div>
+  <span class="nav-label">Notifications</span>
+</div>
+
+
+
+
+
+
+
+    <a *ngIf="!user" routerLink="/about" routerLinkActive="active" class="nav-item">
+      <div class="nav-icon">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
+          <path d="M9.09 9C9.3251 8.33167 9.78915 7.76811 10.4 7.40913C11.0108 7.05016 11.7289 6.91894 12.4272 7.03871C13.1255 7.15849 13.7588 7.52152 14.2151 8.06353C14.6713 8.60553 14.9211 9.29152 14.92 10C14.92 12 11.92 13 11.92 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M12 17H12.01" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <span class="nav-label">About</span>
+    </a>
+
+    <!-- Profile/Auth -->
+    <div class="nav-item profile-nav" *ngIf="user; else authButtons">
+      <div class="nav-icon profile-icon" (click)="toggleMobileUserMenu()">
+        <div class="user-avatar-mobile">
+          <img *ngIf="user?.photoURL; else initials" [src]="user?.photoURL" alt="User Avatar" />
+          <ng-template #initials>{{ getUserInitial() }}</ng-template>
+        </div>
+      </div>
+      <span class="nav-label">Profile</span>
+    </div>
+
+    <ng-template #authButtons>
+      <a routerLink="/login" class="nav-item auth-nav">
+        <div class="nav-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M15 3H19C19.5304 3 20.0391 3.21071 20.4142 3.58579C20.7893 3.96086 21 4.46957 21 5V19C21 19.5304 20.7893 20.0391 20.4142 20.4142C20.0391 20.7893 19.5304 21 19 21H15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M10 17L15 12L10 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M15 12H3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <span class="nav-label">Sign In</span>
+      </a>
+    </ng-template>
+  </div>
+</nav>
+
+<!-- Mobile User Menu Overlay -->
+<div class="mobile-user-overlay" [class.active]="mobileUserMenuOpen" *ngIf="user && mobileUserMenuOpen" (click)="closeMobileUserMenu()">
+  <div class="mobile-user-menu" (click)="$event.stopPropagation()">
+    <div class="mobile-user-header">
+      <img *ngIf="user?.photoURL; else initialsLarge" [src]="user?.photoURL" alt="User Avatar" />
+      <ng-template #initialsLarge>{{ getUserInitial() }}</ng-template>
+      <div class="user-details">
+        <div class="user-display-name">{{ getUserName() }}</div>
+        <div class="user-email">{{ user?.email }}</div>
+      </div>
+      <button class="close-mobile-menu" (click)="closeMobileUserMenu()">&times;</button>
+    </div>
+    
+    <div class="mobile-menu-items">
+      <a routerLink="/profile" (click)="closeMobileUserMenu()" class="mobile-menu-item">
+        <span class="item-icon">👤</span>
+        <span>Profile</span>
+      </a>
+      <a routerLink="/my-stories" (click)="closeMobileUserMenu()" class="mobile-menu-item">
+        <span class="item-icon">📖</span>
+        <span>My Stories</span>
+      </a>
+      <a routerLink="/settings" (click)="closeMobileUserMenu()" class="mobile-menu-item">
+        <span class="item-icon">⚙️</span>
+        <span>Settings</span>
+      </a>
+      <button class="mobile-menu-item logout-item" (click)="logout()">
+        <span class="item-icon">🚪</span>
+        <span>Sign Out</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal remains the same -->
+<div 
+  class="modal" 
+  [style.display]="isOpen ? 'flex' : 'none'"
+  [attr.aria-hidden]="!isOpen"
+  role="dialog"
+  aria-labelledby="modal-title"
+  aria-modal="true"
+  (click)="onOverlayClick($event)">
+  
+  <div class="modal-content" role="document">
+    <button 
+      class="close-modal" 
+      (click)="closeModal()"
+      aria-label="Close Subscription Form">
+      &times;
+    </button>
+    
+    <h2 id="modal-title">Subscribe to Our Newsletter</h2>
+    
+    <form (ngSubmit)="onSubmit()" #subscribeForm="ngForm" action="https://formsubmit.co/unposted.infos@gmail.com" method="POST" target="_blank">
+      <label for="email-subscribe">
+        Email Address <span class="required">*</span>
+      </label>
+      <input 
+        type="email" 
+        id="email-subscribe" 
+        name="email" 
+        [(ngModel)]="email"
+        placeholder="Enter your email" 
+        required />
+
+      <input type="text" name="_honey" style="display:none" />
+      <input type="hidden" name="_captcha" value="false" />
+      <input type="hidden" name="_next" value="https://un-posted.github.io/unposted/pages/thank-you.html" />
+      
+      <button type="submit" [disabled]="!subscribeForm.valid">
+        Subscribe
+      </button>
+    </form>
+  </div>
+</div>

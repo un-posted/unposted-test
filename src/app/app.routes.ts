@@ -1,36 +1,34 @@
 import { Routes } from '@angular/router';
-import { StoriesComponent } from './shared/story/stories.component';
-import { ArticleComponent } from './shared/story/article.component';
-import { WriteStoryComponent } from './shared/story/write.component';
-import { AboutComponent } from './shared/navbar/about.component';
-import { LoginComponent } from './auth/login/login';
-import { RegisterComponent } from './auth/register/register';
-import { authGuard } from './core/guards/auth-guard';
-import { ProfileComponent } from './shared/profile/profile.component';
+import { Stories } from './components/stories/stories';
+import { Profile } from './components/profile/profile';
+import { About } from './components/about/about';
+import { Login } from './components/login/login';
+import { Register } from './components/register/register';
+import { Story } from './components/story/story';
+import { Write } from './components/write/write';
+import { Notifications } from './components/notifications/notifications';
+import { authGuard } from './guards/auth.guard';
+import { guestGuard } from './guards/guest.guard';
 
 export const routes: Routes = [
-  { path: '', component: StoriesComponent },
-  { path: 'stories', component: StoriesComponent },
-  
-  // Individual story routes
-  { path: 'story/:id', component: ArticleComponent }, // Dynamic story by ID
-  { path: 'article', redirectTo: '/stories', pathMatch: 'full' }, // Redirect old route
-  
-  // Other pages
-  { path: 'about', component: AboutComponent },
-  
-  // Auth-protected routes
-  { path: 'write', component: WriteStoryComponent },
-  
-  // Authentication routes
-  { path: 'login', component: LoginComponent },
-  { path: 'register', component: RegisterComponent },
-  
-  // User profile and management (if needed later)
-  { path: 'profile', component: ProfileComponent, canActivate: [authGuard] },
-  { path: 'profile/:id', component: ProfileComponent, canActivate: [authGuard] },
-  // { path: 'my-stories', component: MyStoriesComponent, canActivate: [authGuard] },
-  
-  // Wildcard route - must be last
+  { path: '', component: Stories, title: 'Stories - Unposted' },
+  { path: 'stories', component: Stories, title: 'Stories - Unposted' },
+
+  { path: 'story/:id', component: Story, title: 'Story - Unposted' },
+  { path: 'story', component: Story, title: 'Story - Unposted' },
+  { path: 'article', redirectTo: '/stories', pathMatch: 'full' },
+
+  { path: 'about', component: About, title: 'About - Unposted' },
+
+  // Auth-protected
+  { path: 'notifications', component: Notifications, canActivate: [authGuard], title: 'Notifications - Unposted' },
+  { path: 'write', component: Write, title: 'Write - Unposted' },
+  { path: 'profile', component: Profile, canActivate: [authGuard], title: 'Profile - Unposted' },
+  { path: 'profile/:id', component: Profile, canActivate: [authGuard], title: 'Profile - Unposted' },
+
+  // Guest-only
+  { path: 'login', component: Login, canActivate: [guestGuard], title: 'Login - Unposted' },
+  { path: 'register', component: Register, canActivate: [guestGuard], title: 'Register - Unposted' },
+
   { path: '**', redirectTo: '/stories' }
 ];

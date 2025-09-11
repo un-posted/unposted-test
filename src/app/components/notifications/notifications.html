@@ -1,0 +1,118 @@
+<!-- Desktop/Mobile Header -->
+<div class="notifications-header">
+  <div class="header-content">
+    <button class="back-btn" (click)="goBack()">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M19 12H5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M12 19L5 12L12 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span class="back-text">Back</span>
+    </button>
+
+    <h1 class="page-title">
+      <span class="title-icon">🔔</span>
+      Notifications
+      <span *ngIf="unreadCount > 0" class="unread-badge">{{ unreadCount }}</span>
+    </h1>
+
+    <button 
+      *ngIf="unreadCount > 0" 
+      class="mark-all-read-btn" 
+      (click)="markAllAsRead()">
+      Mark all read
+    </button>
+  </div>
+</div>
+
+<!-- Filter Tabs -->
+<div class="filter-tabs">
+  <button 
+    class="filter-tab" 
+    [class.active]="selectedFilter === 'all'"
+    (click)="setFilter('all')">
+    All
+    <span class="tab-count">({{ notifications.length }})</span>
+  </button>
+  <button 
+    class="filter-tab" 
+    [class.active]="selectedFilter === 'unread'"
+    (click)="setFilter('unread')">
+    Unread
+    <span class="tab-count">({{ unreadCount }})</span>
+  </button>
+</div>
+
+<!-- Main Content -->
+<div class="notifications-container">
+  <!-- Loading State -->
+  <div *ngIf="loading" class="loading-state">
+    <div class="loading-spinner"></div>
+    <p>Loading notifications...</p>
+  </div>
+
+  <!-- Notifications List -->
+  <div *ngIf="!loading && filteredNotifications.length > 0" class="notifications-list">
+    <div 
+      *ngFor="let notification of filteredNotifications; trackBy: trackByNotificationId" 
+      class="notification-item"
+      [class.unread]="!notification.isRead"
+      [class.read]="notification.isRead"
+      (click)="onNotificationClick(notification)">
+      
+      <!-- Notification Icon -->
+      <div class="notification-icon" [ngClass]="'icon-' + notification.type">
+        <span>{{ getNotificationIcon(notification.type) }}</span>
+      </div>
+      
+      <!-- Notification Content -->
+      <div class="notification-content">
+        <div class="notification-title">{{ notification.title }}</div>
+        <div class="notification-message">{{ notification.message }}</div>
+        <div class="notification-time">{{ getTimeAgo(notification.createdAt) }}</div>
+      </div>
+      
+      <!-- Unread Indicator -->
+      <div class="notification-status" *ngIf="!notification.isRead">
+        <div class="unread-dot"></div>
+      </div>
+      
+      <!-- Action Arrow -->
+      <div class="notification-arrow">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M9 18L15 12L9 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+    </div>
+  </div>
+
+  <!-- Empty State -->
+  <div *ngIf="!loading && filteredNotifications.length === 0" class="empty-state">
+    <div class="empty-icon">
+      <span *ngIf="selectedFilter === 'all'">🔔</span>
+      <span *ngIf="selectedFilter === 'unread'">✅</span>
+    </div>
+    <h3 class="empty-title">
+      <span *ngIf="selectedFilter === 'all'">No notifications yet</span>
+      <span *ngIf="selectedFilter === 'unread'">All caught up!</span>
+    </h3>
+    <p class="empty-description">
+      <span *ngIf="selectedFilter === 'all'">
+        When you get likes, comments, or follows, they'll appear here.
+      </span>
+      <span *ngIf="selectedFilter === 'unread'">
+        You've read all your notifications. Great job staying updated!
+      </span>
+    </p>
+    <a *ngIf="selectedFilter === 'all'" routerLink="/stories" class="cta-button">
+      Explore Stories
+    </a>
+    <button *ngIf="selectedFilter === 'unread'" (click)="setFilter('all')" class="cta-button secondary">
+      View All Notifications
+    </button>
+  </div>
+</div>
+
+<!-- Helper function for trackBy -->
+<ng-container *ngIf="false">
+  {{ trackByNotificationId(0, notifications[0]) }}
+</ng-container>
