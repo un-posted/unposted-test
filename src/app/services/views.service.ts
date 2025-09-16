@@ -84,7 +84,7 @@ export class ViewsService {
         // Add view document
         batch.set(viewDocRef, {
           storyId,
-          userId: currentUser?.uid || null,
+          userId: currentUser?.uid || viewDocId,
           isAnonymous: !currentUser,
           timestamp: serverTimestamp(),
           userAgent: navigator.userAgent.substring(0, 200) // Limit length
