@@ -1,10 +1,12 @@
 import { Component, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
+import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 
 @Component({
   selector: 'app-login',
-  imports: [],
+  imports: [CommonModule, FormsModule],
   templateUrl: './login.html',
   styleUrl: './login.scss'
 })
@@ -12,8 +14,32 @@ export class Login {
 private authService = inject(AuthService);
   private router = inject(Router);
 
-  errorMessage = '';
-  isLoading = false;
+
+  email: string = '';
+  password: string = '';
+  errorMessage: string = '';
+  isLoading: boolean = false;
+
+  async onLogin() {
+    if (!this.email || !this.password) return;
+
+    this.isLoading = true;
+    this.errorMessage = '';
+
+    try {
+      await this.authService.emailLogin(this.email, this.password);
+      console.log('Login successful!');
+      // Redirect to dashboard or home page
+      
+      this.router.navigate(['/stories']); // Adjust route as needed
+    } catch (error: any) {
+      console.error('Login error:', error);
+      this.errorMessage = this.getErrorMessage(error.code);
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
 
 
   // Google login method

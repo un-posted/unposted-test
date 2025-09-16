@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { Auth, authState, GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signOut, User } from '@angular/fire/auth';
+import { Auth, authState, createUserWithEmailAndPassword, GoogleAuthProvider, onAuthStateChanged, signInWithEmailAndPassword, signInWithPopup, signOut, User } from '@angular/fire/auth';
 import { Firestore, doc, getDoc, setDoc, updateDoc, serverTimestamp } from '@angular/fire/firestore';
 import { Profile } from '../models';
 
@@ -15,6 +15,19 @@ export class AuthService {
     this.user = user; // keeps it updated even on refresh
   });
 }
+
+
+async emailRegister(email: string, password: string) { 
+  const cred = await createUserWithEmailAndPassword(this.auth, email, password);
+  this.user = cred.user;
+
+  if (cred.user) {
+    await this.ensureProfile(cred.user);
+  }
+
+  return cred.user;
+}
+  async emailLogin(email: string, password: string) { return signInWithEmailAndPassword(this.auth, email, password); }
 
   async googleLogin(): Promise<User | null> {
     const provider = new GoogleAuthProvider();
@@ -40,7 +53,7 @@ export class AuthService {
     if (!snap.exists()) {
       const newProfile: Profile = {
         id: user.uid,
-        name: user.displayName ?? '',
+        name: user.displayName ?? 'Unposter',
         email: user.email ?? '',
         bio: '',
         photoURL: user.photoURL ?? '',

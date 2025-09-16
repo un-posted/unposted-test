@@ -2,10 +2,12 @@ import { Component, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 import { ProfileService } from '../../services/profile.service';
+import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 
 @Component({
   selector: 'app-register',
-  imports: [],
+  imports: [CommonModule, FormsModule],
   templateUrl: './register.html',
   styleUrl: './register.scss'
 })
@@ -16,12 +18,50 @@ private authService = inject(AuthService);
 
 
 
-  errorMessage = '';
-  successMessage = '';
-  isLoading = false;
+username: string = '';
+  email: string = '';
+  password: string = '';
+  confirmPassword: string = '';
+  errorMessage: string = '';
+  successMessage: string = '';
+  isLoading: boolean = false;
 
+  async onRegister() {
+    // Reset messages
+    this.errorMessage = '';
+    this.successMessage = '';
 
+    // Validation
+    if (this.password !== this.confirmPassword) {
+      this.errorMessage = 'Passwords do not match!';
+      return;
+    }
 
+    if (this.password.length < 6) {
+      this.errorMessage = 'Password must be at least 6 characters long.';
+      return;
+    }
+
+    this.isLoading = true;
+
+    try {
+      const userCredential = await this.authService.emailRegister(this.email, this.password);
+      console.log('Registration successful:', userCredential);
+
+      this.successMessage = 'Account created successfully! Redirecting...';
+      
+      // Redirect after a short delay
+      setTimeout(() => {
+        this.router.navigate(['/stories']); // Adjust route as needed
+      }, 2000);
+
+    } catch (error: any) {
+      console.error('Registration error:', error);
+      this.errorMessage = this.getErrorMessage(error.code);
+    } finally {
+      this.isLoading = false;
+    }
+  }
 // Implement onGoogleRegister in RegisterComponent:
 async onGoogleRegister() {
   this.isLoading = true;
