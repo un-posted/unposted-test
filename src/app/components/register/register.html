@@ -1,6 +1,18 @@
 <div class="register-container">
   <h2 class="register-title">📝 Register</h2>
 <small class="password-hint">We recommend signing up with Google</small>
+<button
+    type="button"
+    (click)="onGoogleRegister()"
+    [disabled]="isLoading"
+    class="google-button">
+    <img src="https://www.svgrepo.com/show/355037/google.svg" 
+         alt="Google Logo" 
+         class="google-icon"/>
+    <span>Register with Google</span>
+  </button>
+  <hr><br>
+
   <form (ngSubmit)="onRegister()" #registerForm="ngForm">
         <!-- Username -->
         <div class="form-group">
@@ -74,20 +86,10 @@
           {{ isLoading ? 'Creating Account...' : 'Register' }}
         </button>
       </form>
-<hr><br>
 
           <small class="password-hint">We recommend signing up with Google</small>
   <!-- Google Register Button -->
-  <button
-    type="button"
-    (click)="onGoogleRegister()"
-    [disabled]="isLoading"
-    class="google-button">
-    <img src="https://www.svgrepo.com/show/355037/google.svg" 
-         alt="Google Logo" 
-         class="google-icon"/>
-    <span>Register with Google</span>
-  </button>
+  
 
   <p class="login-text">
     Already have an account? <a href="/login">Login</a>

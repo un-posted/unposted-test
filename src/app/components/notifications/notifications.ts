@@ -34,6 +34,7 @@ export class Notifications implements OnInit, OnDestroy {
     // Subscribe to user authentication state
     this.userSubscription = this.authService.user$.subscribe(user => {
       this.user = user;
+      console.log(this.user)
       if (!user) {
         this.router.navigate(['/login']);
       }

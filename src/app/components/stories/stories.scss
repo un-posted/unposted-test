@@ -955,14 +955,7 @@
     /* Dark mode support (if needed) */
     @media (prefers-color-scheme: dark) {
 
-      .skeleton-avatar,
-      .skeleton-line {
-        background: linear-gradient(90deg, #3a3833 25%, #4a463f 50%, #3a3833 75%);
-      }
-
-      .feed-header {
-        background: rgba(26, 25, 23, 0.95);
-      }
+      
 
       .category-badge[data-category="Personal Growth"] { background: #fef3c7; color: #92400e; }
 .category-badge[data-category="Life Lessons"] { background: #fce7f3; color: #9d174d; }
